@@ -218,7 +218,7 @@ with tab1:
                     </div>
                     """
                     st.markdown(payment_html, unsafe_allow_html=True)                    
-                    st.warning("🔄 Lưu ý: Sau khi chuyển khoản, bạn vui lòng đợi vài phút rồi bấm nút KẾT QUẢ lại một lần nữa để cập nhật trạng thái thành công nhé!")
+                    st.warning("🔄 Lưu ý: Sau khi chuyển khoản, bạn vui lòng đợi khoảng 15 phút rồi bấm nút KẾT QUẢ lại một lần nữa để kiểm tra trạng thái chuyển khoản nhé!")
 
                 else:
                     st.error("RẤT TIẾC BÀ HONG CÓ ĐĂNG KÝ THÀNH CÔNG ỜI 😭")
