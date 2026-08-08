@@ -59,7 +59,7 @@ def load_data():
 try:
     df = load_data()
 except Exception as e:
-    st.error("Đang có lỗi kết nối dữ liệu, bạn vui lòng thử lại sau nhé!")
+    st.error(f"Lỗi thật sự là: {e}") # In thẳng cái lỗi hệ thống ra màn hình
     st.stop()
 
 # Danh sách các cột sản phẩm
