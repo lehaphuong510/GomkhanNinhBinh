@@ -108,7 +108,7 @@ st.title("🧣 KẾT QUẢ GOM KHĂN NINH BÌNH")
 # 2. KẾT NỐI DỮ LIỆU
 url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
 
-@st.cache_data(ttl=60) 
+@st.cache_data(ttl=15) 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(spreadsheet=url)
