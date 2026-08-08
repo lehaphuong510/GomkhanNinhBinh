@@ -47,13 +47,17 @@ st.title("🧣 KẾT QUẢ GOM KHĂN NINH BÌNH")
 # 2. KẾT NỐI DỮ LIỆU
 url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
 
-@st.cache_data(ttl=60) # Tự động làm mới mỗi 60 giây để tránh lag/quá tải API
+@st.cache_data(ttl=60) 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(spreadsheet=url)
-    # Ép kiểu SĐT thành chuỗi để giữ nguyên số 0
+    
+    # Dọn dẹp khoảng trắng dư thừa ở tất cả tên cột
+    df.columns = df.columns.str.strip()
+    
+    # Ép kiểu SĐT thành chuỗi, dọn dẹp ký tự thừa
     if 'SDT full' in df.columns:
-        df['SDT full'] = df['SDT full'].astype(str).str.replace(".0", "", regex=False).str.strip()
+        df['SDT full'] = df['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     return df
 
 try:
@@ -76,9 +80,14 @@ with tab1:
     
     if st.button("KẾT QUẢ 🚀"):
         if phone_input:
-            phone_input = phone_input.strip()
-            # Lọc data theo sdt
-            user_row = df[df['SDT full'] == phone_input]
+            # Gọt khoảng trắng và cắt bỏ số 0 ở đầu của SĐT khách nhập
+            clean_input = phone_input.strip().lstrip('0')
+            
+            # Tạo 1 cột tạm thời (ẩn) cũng cắt bỏ số 0 ở đầu để đem ra đối chiếu
+            df['Phone_Compare'] = df['SDT full'].astype(str).str.lstrip('0')
+            
+            # Lọc data theo sdt đã gọt sạch số 0
+            user_row = df[df['Phone_Compare'] == clean_input]
             
             if not user_row.empty:
                 user_data = user_row.iloc[0] # Lấy dòng đầu tiên khớp
@@ -112,7 +121,8 @@ with tab1:
                         st.image("TTCK.jpg", caption="Quét mã QR để thanh toán", use_column_width=True)
                     with col2:
                         st.markdown("**NỘI DUNG CHUYỂN KHOẢN:**")
-                        st.code(f"KHAN - {phone_input[-3:]}", language="text")
+                        # Trích xuất 3 số cuối dựa vào sdt khách nhập gốc
+                        st.code(f"KHAN - {phone_input.strip()[-3:]}", language="text")
                         st.info("Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!")
                 else:
                     st.error("RẤT TIẾC BÀ HONG CÓ ĐĂNG KÝ THÀNH CÔNG ỜI 😭")
