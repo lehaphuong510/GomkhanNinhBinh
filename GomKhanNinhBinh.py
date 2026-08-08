@@ -193,7 +193,7 @@ with tab1:
                     # ---- KHỐI THÔNG TIN THANH TOÁN GỘP BẰNG HTML/CSS FLEXBOX ----
                     # Code img xử lý hiển thị linh hoạt
                     img_tag = f"<img src='data:image/jpeg;base64,{qr_base64}' alt='QR Code'><div class='qr-caption'>Quét mã QR để thanh toán</div>" if qr_base64 else "<div style='color:red;'>Đang cập nhật mã QR...</div>"
-                    
+                    st.warning("🔄 Lưu ý: Sau khi chuyển khoản, bạn vui lòng đợi vài phút rồi bấm nút KẾT QUẢ lại một lần nữa để cập nhật trạng thái thành công nhé!")
                     noidung_ck = f"KHAN - {phone_input.strip()[-3:]}"
                     
                     payment_html = f"""
