@@ -170,11 +170,15 @@ with tab1:
                     # ---- GỘP TỔNG TIỀN ----
                     total_tien = 0
                     for tien_str in matched_rows['Số tiền'].astype(str):
-                        tien_digits = re.sub(r'[^\d]', '', tien_str)
+                        # Xóa đuôi .0 nếu Pandas tự ép kiểu float trước khi bóc tách số
+                        tien_str_clean = re.sub(r'\.0$', '', str(tien_str).strip())
+                        tien_digits = re.sub(r'[^\d]', '', tien_str_clean)
+                        
                         if tien_digits:
                             total_tien += int(tien_digits)
                             
                     tien_format = f"{total_tien:,}".replace(',', '.') + " VNĐ" if total_tien > 0 else "Đang cập nhật"
+
                     
                     # Lấy Hạn chót & Thời gian từ dòng thành công đầu tiên
                     first_success = matched_rows[matched_rows['Đăng ký thành công'].astype(str).str.contains('✅')].iloc[0]
