@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 from streamlit_gsheets import GSheetsConnection
+import os
 
 # 1. CẤU HÌNH TRANG & GIAO DIỆN (UI/UX - BẢN NỀN TRẮNG SẠCH SẼ)
 st.set_page_config(page_title="KẾT QUẢ GOM KHĂN NINH BÌNH", page_icon="🧣", layout="centered")
@@ -13,7 +14,7 @@ st.markdown("""
     .stApp { background-color: #FFFFFF; color: #333333; }
     
     /* Tiêu đề chính, tiêu đề phụ & text nhấn */
-    h1, h2, h3, .stTabs [data-baseweb="tab"] p, .highlight { color: #0B192C !important; font-weight: bold; }
+    h1, h2, h3, .stTabs [data-baseweb="tab"] p { color: #0B192C !important; font-weight: bold; }
     
     /* Nút bấm (Nền Mustard, chữ Navy) */
     .stButton>button { 
@@ -28,7 +29,44 @@ st.markdown("""
     /* Tab active */
     .stTabs [aria-selected="true"] { border-bottom-color: #0B192C !important; }
     
-    /* Card Thống kê (Giống phong cách Dashboard) */
+    /* ================= THIẾT KẾ UI CHO KẾT QUẢ ================= */
+    
+    /* Khối Title Gradient (Navy -> Mustard) */
+    .section-title { 
+        background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); 
+        color: white; 
+        padding: 12px 15px; 
+        border-radius: 8px 8px 0 0; 
+        font-size: 16px; 
+        font-weight: bold; 
+        margin-top: 25px;
+        margin-bottom: 0px;
+        text-transform: uppercase;
+    }
+    
+    /* Bảng HTML Custom nối liền với Title */
+    .custom-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-bottom: 20px; 
+        border: 1px solid #E0E6ED;
+        border-top: none;
+        border-radius: 0 0 8px 8px; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .custom-table th { background-color: #1A2B4C; color: white; padding: 12px; text-align: center; font-size: 14px;}
+    .custom-table th:first-child { text-align: left; }
+    .custom-table td { padding: 12px; border-bottom: 1px solid #E0E6ED; text-align: center; font-weight: bold; color: #0B192C; }
+    .custom-table td:first-child { text-align: left; font-weight: normal; color: #333333;}
+    .custom-table tr:last-child td { border-bottom: none; }
+    
+    /* Style cho value phía sau dấu : */
+    .highlight-val { color: #D4AF37; font-weight: bold; font-size: 16px;} /* Màu vàng đất đậm */
+    .info-row { margin-bottom: 12px; font-size: 15px; border-bottom: 1px dashed #EEEEEE; padding-bottom: 8px;}
+    
+    /* =========================================================== */
+    
+    /* Card Thống kê */
     .metric-card { 
         background-color: #FFFFFF; border: 1px solid #E0E6ED; border-top: 5px solid #0B192C; 
         padding: 15px; border-radius: 8px; margin-bottom: 15px; 
@@ -37,9 +75,6 @@ st.markdown("""
     .metric-title { font-size: 16px; color: #0B192C; font-weight: bold; }
     .metric-value { font-size: 26px; font-weight: bold; color: #F4C430; }
     .metric-sub { font-size: 14px; color: #888888; margin-top: 5px; }
-    
-    /* Bảng */
-    [data-testid="stDataFrame"] { background-color: #FFFFFF; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -52,10 +87,7 @@ url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9D
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(spreadsheet=url)
-    
     df.columns = df.columns.str.strip()
-    
-    # Ép kiểu SĐT thành chuỗi, gọt số .0
     if 'SDT full' in df.columns:
         df['SDT full'] = df['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     return df
@@ -89,45 +121,53 @@ with tab1:
                 
                 if is_success:
                     st.success("🎉 CHÚC MỪNG BẠN ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
-                    st.markdown("---")
                     
-                    st.markdown("<h4 class='highlight'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</h4>", unsafe_allow_html=True)
-                    user_products = {p: ["✅" if "✅" in str(user_data.get(p, "")) else ""] for p in products}
-                    df_user_prod = pd.DataFrame(user_products)
-                    st.dataframe(df_user_prod, hide_index=True, use_container_width=True)
+                    # ---- BẢNG SẢN PHẨM CUSTOM HTML ----
+                    table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div><table class='custom-table'>"
+                    table_html += "<tr><th>Sản Phẩm</th><th>Lấy</th></tr>"
+                    for p in products:
+                        tick = "✅" if "✅" in str(user_data.get(p, "")) else ""
+                        table_html += f"<tr><td>{p}</td><td>{tick}</td></tr>"
+                    table_html += "</table>"
+                    
+                    st.markdown(table_html, unsafe_allow_html=True)
                     
                     # ---- XỬ LÝ FORMAT TIỀN TỆ ----
                     raw_tien = str(user_data.get('Số tiền', '0'))
-                    tien_digits = re.sub(r'[^\d]', '', raw_tien) # Chỉ lấy số, bỏ hết chữ và ký tự đặc biệt
+                    tien_digits = re.sub(r'[^\d]', '', raw_tien) 
                     
                     if tien_digits:
-                        tien_int = int(tien_digits)
-                        tien_format = f"{tien_int:,}".replace(',', '.') + " VNĐ"
+                        tien_format = f"{int(tien_digits):,}".replace(',', '.') + " VNĐ"
                     else:
                         tien_format = "Đang cập nhật"
                     # ------------------------------
 
-                    st.markdown("<h4 class='highlight'>THÔNG TIN THANH TOÁN</h4>", unsafe_allow_html=True)
-                    st.markdown(f"**💰 Số tiền cần thanh toán:** <span style='color:#F4C430; font-size:18px; font-weight:bold;'>{tien_format}</span>", unsafe_allow_html=True)
-                    st.markdown(f"**⏳ Hạn chót chuyển khoản:** {user_data.get('Hạn chót chuyển khoản', 'Đang cập nhật')}")
-                    st.markdown(f"**⏱️ Thời gian chuyển khoản còn lại:** {user_data.get('Thời gian còn lại', 'Đang cập nhật')}")
-                    st.markdown(f"**💳 Trạng thái chuyển khoản:** {user_data.get('Chuyển khoản thành công', 'Đang cập nhật')}")
+                    # ---- KHỐI THÔNG TIN THANH TOÁN (GỘP CHUNG QR & TEXT) ----
+                    st.markdown("<div class='section-title'>THÔNG TIN THANH TOÁN</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='border: 1px solid #E0E6ED; border-top:none; border-radius: 0 0 8px 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background-color: #FAFAFA;'>", unsafe_allow_html=True)
                     
-                    st.markdown("---")
+                    # Chia cột Layout
+                    col_info, col_qr = st.columns([1.3, 1])
                     
-                    st.markdown("<h4 class='highlight'>THÔNG TIN CHUYỂN KHOẢN</h4>", unsafe_allow_html=True)
-                    col1, col2 = st.columns([1, 1])
-                    with col1:
-                        import os
+                    with col_info:
+                        st.markdown(f"<div class='info-row'>**💰 Số tiền cần thanh toán:** <span class='highlight-val'>{tien_format}</span></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='info-row'>**⏳ Hạn chót chuyển khoản:** <span class='highlight-val'>{user_data.get('Hạn chót chuyển khoản', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='info-row'>**⏱️ Thời gian còn lại:** <span class='highlight-val'>{user_data.get('Thời gian còn lại', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='info-row'>**💳 Trạng thái chuyển khoản:** <span class='highlight-val'>{user_data.get('Chuyển khoản thành công', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
+                        
+                        st.markdown("<div style='margin-top: 20px; margin-bottom: 5px;'>**NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:**</div>", unsafe_allow_html=True)
+                        st.code(f"KHAN - {phone_input.strip()[-3:]}", language="text")
+                        st.info("Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!")
+
+                    with col_qr:
                         if os.path.exists("TTCK.jpg"):
-                            # Đã fix lỗi TypeError bằng cách xài use_container_width thay cho use_column_width
                             st.image("TTCK.jpg", caption="Quét mã QR để thanh toán", use_container_width=True)
                         else:
                             st.warning("Đang cập nhật mã QR...")
-                    with col2:
-                        st.markdown("**NỘI DUNG CHUYỂN KHOẢN:**")
-                        st.code(f"KHAN - {phone_input.strip()[-3:]}", language="text")
-                        st.info("Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!")
+                            
+                    # Đóng div khối thanh toán
+                    st.markdown("</div>", unsafe_allow_html=True)
+
                 else:
                     st.error("RẤT TIẾC BÀ HONG CÓ ĐĂNG KÝ THÀNH CÔNG ỜI 😭")
             else:
