@@ -31,27 +31,39 @@ st.markdown("""
     
     /* ================= THIẾT KẾ BẢNG & TEXT CUSTOM ================= */
     
-    /* Bảng HTML Custom (Header Gradient) */
+    /* Khối Title Gradient */
+    .section-title { 
+        background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); 
+        color: white; 
+        padding: 12px 15px; 
+        border-radius: 8px 8px 0 0; 
+        font-size: 16px; 
+        font-weight: bold; 
+        margin-top: 25px;
+        text-transform: uppercase;
+    }
+    
+    /* Bảng HTML Custom */
     .custom-table { 
         width: 100%; 
         border-collapse: separate; 
         border-spacing: 0;
-        margin-top: 15px;
         margin-bottom: 20px; 
         border: 1px solid #E0E6ED;
-        border-radius: 8px; 
+        border-top: none;
+        border-radius: 0 0 8px 8px; 
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         overflow: hidden;
     }
-    .custom-table thead tr { background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); }
-    .custom-table th { color: white; padding: 14px; text-align: center; font-size: 15px; border: none; }
+    .custom-table thead tr { background-color: #1A2B4C; } 
+    .custom-table th { color: white; padding: 12px 14px; text-align: center; font-size: 15px; border: none; }
     .custom-table th:first-child { text-align: left; }
     .custom-table td { padding: 14px; border-bottom: 1px solid #EEEEEE; border-right: 1px solid #EEEEEE; text-align: center; font-weight: bold; color: #0B192C; background-color: #FFFFFF;}
     .custom-table td:first-child { text-align: left; color: #0B192C; }
     .custom-table td:last-child { border-right: none; }
     .custom-table tr:last-child td { border-bottom: none; }
     
-    /* Dấu Tick Custom Gradient (Navy -> Mustard) */
+    /* Dấu Tick Custom Gradient */
     .custom-tick { 
         font-size: 24px; 
         font-weight: 900; 
@@ -63,8 +75,6 @@ st.markdown("""
     /* Style cho value phía sau dấu : */
     .highlight-val { color: #D4AF37; font-weight: bold; font-size: 16px;} 
     .info-row { margin-bottom: 15px; font-size: 15px; border-bottom: 1px dashed #EEEEEE; padding-bottom: 10px;}
-    
-    /* =========================================================== */
     
     /* Card Thống kê */
     .metric-card { 
@@ -120,12 +130,17 @@ with tab1:
                 is_success = str(user_data.get('Đăng ký thành công', '')).strip() == '✅'
                 
                 if is_success:
-                    st.success("🎉 CHÚC MỪNG BẠN ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
+                    # Lấy nickname, nếu trống thì gọi là BẠN
+                    nickname = str(user_data.get('Nickname', '')).strip()
+                    if not nickname or nickname.lower() == 'nan':
+                        nickname = "BẠN"
+                    
+                    st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
                     
                     # ---- BẢNG SẢN PHẨM CUSTOM HTML ----
-                    table_html = "<table class='custom-table'><thead><tr><th>Sản Phẩm Đăng Ký</th><th>Lấy</th></tr></thead><tbody>"
+                    table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div>"
+                    table_html += "<table class='custom-table'><thead><tr><th>Sản Phẩm</th><th>Lấy</th></tr></thead><tbody>"
                     for p in products:
-                        # Thay dấu tick emoji bằng dấu tick HTML có đổ CSS gradient
                         tick = "<span class='custom-tick'>✔</span>" if "✅" in str(user_data.get(p, "")) else ""
                         table_html += f"<tr><td>{p}</td><td>{tick}</td></tr>"
                     table_html += "</tbody></table>"
@@ -142,14 +157,13 @@ with tab1:
                         tien_format = "Đang cập nhật"
                     # ------------------------------
 
-                    # ---- KHỐI THÔNG TIN THANH TOÁN (ĐÃ SỬA THẺ BOLD) ----
-                    st.markdown("<h3 style='color: #0B192C; margin-top: 30px;'>THÔNG TIN THANH TOÁN</h3>", unsafe_allow_html=True)
-                    st.markdown("<div style='border: 1px solid #E0E6ED; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background-color: #FAFAFA;'>", unsafe_allow_html=True)
+                    # ---- KHỐI THÔNG TIN THANH TOÁN ----
+                    st.markdown("<div class='section-title'>THÔNG TIN THANH TOÁN</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='border: 1px solid #E0E6ED; border-top:none; border-radius: 0 0 8px 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background-color: #FAFAFA; margin-bottom: 25px;'>", unsafe_allow_html=True)
                     
                     col_info, col_qr = st.columns([1.3, 1])
                     
                     with col_info:
-                        # Dùng <strong> thay vì ** để tránh lỗi Markdown trong HTML
                         st.markdown(f"<div class='info-row'><strong>💰 Số tiền cần thanh toán:</strong> <span class='highlight-val'>{tien_format}</span></div>", unsafe_allow_html=True)
                         st.markdown(f"<div class='info-row'><strong>⏳ Hạn chót chuyển khoản:</strong> <span class='highlight-val'>{user_data.get('Hạn chót chuyển khoản', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
                         st.markdown(f"<div class='info-row'><strong>⏱️ Thời gian còn lại:</strong> <span class='highlight-val'>{user_data.get('Thời gian còn lại', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
@@ -217,20 +231,17 @@ with tab3:
         
         table_data[p] = [tot, event, ship]
     
-    # ---- BẢNG TỔNG HỢP CUSTOM HTML (Đồng bộ style) ----
-    tab3_html = "<table class='custom-table'><thead><tr><th>Phân loại</th>"
+    # ---- BẢNG TỔNG HỢP CUSTOM HTML (Đồng bộ style, có viền trên) ----
+    tab3_html = "<table class='custom-table' style='border-top: 1px solid #E0E6ED; border-radius: 8px;'><thead><tr><th>Phân loại</th>"
     
-    # Render các cột Header sản phẩm
     for p in products:
         tab3_html += f"<th>{p}</th>"
     tab3_html += "</tr></thead><tbody>"
     
-    # Render từng dòng data
     for i in range(3):
         tab3_html += f"<tr><td>{table_data['Phân loại'][i]}</td>"
         for p in products:
             val = table_data[p][i]
-            # Nếu số lượng là 0 thì để trống cho bảng gọn, có số mới hiện lên
             display_val = val if val > 0 else ""
             tab3_html += f"<td>{display_val}</td>"
         tab3_html += "</tr>"
