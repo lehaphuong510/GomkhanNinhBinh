@@ -4,7 +4,7 @@ import re
 from streamlit_gsheets import GSheetsConnection
 import os
 
-# 1. CẤU HÌNH TRANG & GIAO DIỆN (UI/UX - BẢN NỀN TRẮNG SẠCH SẼ)
+# 1. CẤU HÌNH TRANG & GIAO DIỆN
 st.set_page_config(page_title="KẾT QUẢ GOM KHĂN NINH BÌNH", page_icon="🧣", layout="centered")
 
 # Custom CSS cho theme Nền Trắng, Nhấn Navy & Mustard
@@ -16,7 +16,7 @@ st.markdown("""
     /* Tiêu đề chính, tiêu đề phụ & text nhấn */
     h1, h2, h3, .stTabs [data-baseweb="tab"] p { color: #0B192C !important; font-weight: bold; }
     
-    /* Nút bấm (Nền Mustard, chữ Navy) */
+    /* Nút bấm */
     .stButton>button { 
         background-color: #F4C430; color: #0B192C; 
         font-weight: bold; border-radius: 8px; border: none; width: 100%; 
@@ -29,40 +29,40 @@ st.markdown("""
     /* Tab active */
     .stTabs [aria-selected="true"] { border-bottom-color: #0B192C !important; }
     
-    /* ================= THIẾT KẾ UI CHO KẾT QUẢ ================= */
+    /* ================= THIẾT KẾ BẢNG & TEXT CUSTOM ================= */
     
-    /* Khối Title Gradient (Navy -> Mustard) */
-    .section-title { 
-        background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); 
-        color: white; 
-        padding: 12px 15px; 
-        border-radius: 8px 8px 0 0; 
-        font-size: 16px; 
-        font-weight: bold; 
-        margin-top: 25px;
-        margin-bottom: 0px;
-        text-transform: uppercase;
-    }
-    
-    /* Bảng HTML Custom nối liền với Title */
+    /* Bảng HTML Custom (Header Gradient) */
     .custom-table { 
         width: 100%; 
-        border-collapse: collapse; 
+        border-collapse: separate; 
+        border-spacing: 0;
+        margin-top: 15px;
         margin-bottom: 20px; 
         border: 1px solid #E0E6ED;
-        border-top: none;
-        border-radius: 0 0 8px 8px; 
+        border-radius: 8px; 
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        overflow: hidden;
     }
-    .custom-table th { background-color: #1A2B4C; color: white; padding: 12px; text-align: center; font-size: 14px;}
+    .custom-table thead tr { background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); }
+    .custom-table th { color: white; padding: 14px; text-align: center; font-size: 15px; border: none; }
     .custom-table th:first-child { text-align: left; }
-    .custom-table td { padding: 12px; border-bottom: 1px solid #E0E6ED; text-align: center; font-weight: bold; color: #0B192C; }
-    .custom-table td:first-child { text-align: left; font-weight: normal; color: #333333;}
+    .custom-table td { padding: 14px; border-bottom: 1px solid #EEEEEE; border-right: 1px solid #EEEEEE; text-align: center; font-weight: bold; color: #0B192C; background-color: #FFFFFF;}
+    .custom-table td:first-child { text-align: left; color: #0B192C; }
+    .custom-table td:last-child { border-right: none; }
     .custom-table tr:last-child td { border-bottom: none; }
     
+    /* Dấu Tick Custom Gradient (Navy -> Mustard) */
+    .custom-tick { 
+        font-size: 24px; 
+        font-weight: 900; 
+        background: -webkit-linear-gradient(45deg, #0B192C, #F4C430); 
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+    }
+    
     /* Style cho value phía sau dấu : */
-    .highlight-val { color: #D4AF37; font-weight: bold; font-size: 16px;} /* Màu vàng đất đậm */
-    .info-row { margin-bottom: 12px; font-size: 15px; border-bottom: 1px dashed #EEEEEE; padding-bottom: 8px;}
+    .highlight-val { color: #D4AF37; font-weight: bold; font-size: 16px;} 
+    .info-row { margin-bottom: 15px; font-size: 15px; border-bottom: 1px dashed #EEEEEE; padding-bottom: 10px;}
     
     /* =========================================================== */
     
@@ -123,12 +123,12 @@ with tab1:
                     st.success("🎉 CHÚC MỪNG BẠN ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
                     
                     # ---- BẢNG SẢN PHẨM CUSTOM HTML ----
-                    table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div><table class='custom-table'>"
-                    table_html += "<tr><th>Sản Phẩm</th><th>Lấy</th></tr>"
+                    table_html = "<table class='custom-table'><thead><tr><th>Sản Phẩm Đăng Ký</th><th>Lấy</th></tr></thead><tbody>"
                     for p in products:
-                        tick = "✅" if "✅" in str(user_data.get(p, "")) else ""
+                        # Thay dấu tick emoji bằng dấu tick HTML có đổ CSS gradient
+                        tick = "<span class='custom-tick'>✔</span>" if "✅" in str(user_data.get(p, "")) else ""
                         table_html += f"<tr><td>{p}</td><td>{tick}</td></tr>"
-                    table_html += "</table>"
+                    table_html += "</tbody></table>"
                     
                     st.markdown(table_html, unsafe_allow_html=True)
                     
@@ -142,20 +142,20 @@ with tab1:
                         tien_format = "Đang cập nhật"
                     # ------------------------------
 
-                    # ---- KHỐI THÔNG TIN THANH TOÁN (GỘP CHUNG QR & TEXT) ----
-                    st.markdown("<div class='section-title'>THÔNG TIN THANH TOÁN</div>", unsafe_allow_html=True)
-                    st.markdown("<div style='border: 1px solid #E0E6ED; border-top:none; border-radius: 0 0 8px 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background-color: #FAFAFA;'>", unsafe_allow_html=True)
+                    # ---- KHỐI THÔNG TIN THANH TOÁN (ĐÃ SỬA THẺ BOLD) ----
+                    st.markdown("<h3 style='color: #0B192C; margin-top: 30px;'>THÔNG TIN THANH TOÁN</h3>", unsafe_allow_html=True)
+                    st.markdown("<div style='border: 1px solid #E0E6ED; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background-color: #FAFAFA;'>", unsafe_allow_html=True)
                     
-                    # Chia cột Layout
                     col_info, col_qr = st.columns([1.3, 1])
                     
                     with col_info:
-                        st.markdown(f"<div class='info-row'>**💰 Số tiền cần thanh toán:** <span class='highlight-val'>{tien_format}</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='info-row'>**⏳ Hạn chót chuyển khoản:** <span class='highlight-val'>{user_data.get('Hạn chót chuyển khoản', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='info-row'>**⏱️ Thời gian còn lại:** <span class='highlight-val'>{user_data.get('Thời gian còn lại', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='info-row'>**💳 Trạng thái chuyển khoản:** <span class='highlight-val'>{user_data.get('Chuyển khoản thành công', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
+                        # Dùng <strong> thay vì ** để tránh lỗi Markdown trong HTML
+                        st.markdown(f"<div class='info-row'><strong>💰 Số tiền cần thanh toán:</strong> <span class='highlight-val'>{tien_format}</span></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='info-row'><strong>⏳ Hạn chót chuyển khoản:</strong> <span class='highlight-val'>{user_data.get('Hạn chót chuyển khoản', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='info-row'><strong>⏱️ Thời gian còn lại:</strong> <span class='highlight-val'>{user_data.get('Thời gian còn lại', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='info-row'><strong>💳 Trạng thái chuyển khoản:</strong> <span class='highlight-val'>{user_data.get('Chuyển khoản thành công', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
                         
-                        st.markdown("<div style='margin-top: 20px; margin-bottom: 5px;'>**NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:**</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='margin-top: 20px; margin-bottom: 5px;'><strong>NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:</strong></div>", unsafe_allow_html=True)
                         st.code(f"KHAN - {phone_input.strip()[-3:]}", language="text")
                         st.info("Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!")
 
@@ -165,7 +165,6 @@ with tab1:
                         else:
                             st.warning("Đang cập nhật mã QR...")
                             
-                    # Đóng div khối thanh toán
                     st.markdown("</div>", unsafe_allow_html=True)
 
                 else:
@@ -218,5 +217,24 @@ with tab3:
         
         table_data[p] = [tot, event, ship]
     
-    df_tab3 = pd.DataFrame(table_data)
-    st.dataframe(df_tab3, hide_index=True, use_container_width=True)
+    # ---- BẢNG TỔNG HỢP CUSTOM HTML (Đồng bộ style) ----
+    tab3_html = "<table class='custom-table'><thead><tr><th>Phân loại</th>"
+    
+    # Render các cột Header sản phẩm
+    for p in products:
+        tab3_html += f"<th>{p}</th>"
+    tab3_html += "</tr></thead><tbody>"
+    
+    # Render từng dòng data
+    for i in range(3):
+        tab3_html += f"<tr><td>{table_data['Phân loại'][i]}</td>"
+        for p in products:
+            val = table_data[p][i]
+            # Nếu số lượng là 0 thì để trống cho bảng gọn, có số mới hiện lên
+            display_val = val if val > 0 else ""
+            tab3_html += f"<td>{display_val}</td>"
+        tab3_html += "</tr>"
+        
+    tab3_html += "</tbody></table>"
+    
+    st.markdown(tab3_html, unsafe_allow_html=True)
