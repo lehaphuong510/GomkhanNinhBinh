@@ -1,37 +1,38 @@
 import streamlit as st
 import pandas as pd
 import re
-from streamlit_gsheets import GSheetsConnection
 import os
+import base64
+from streamlit_gsheets import GSheetsConnection
 
 # 1. CẤU HÌNH TRANG & GIAO DIỆN
 st.set_page_config(page_title="KẾT QUẢ GOM KHĂN NINH BÌNH", page_icon="🧣", layout="centered")
 
+# Hàm mã hóa ảnh sang Base64 để nhúng thẳng vào HTML (Khắc phục khe hở)
+def get_image_base64(path):
+    if os.path.exists(path):
+        with open(path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    return ""
+
+qr_base64 = get_image_base64("TTCK.jpg")
+
 # Custom CSS cho theme Nền Trắng, Nhấn Navy & Mustard
 st.markdown("""
     <style>
-    /* Background tổng thể nền trắng, chữ đen/xám đậm */
     .stApp { background-color: #FFFFFF; color: #333333; }
-    
-    /* Tiêu đề chính, tiêu đề phụ & text nhấn */
     h1, h2, h3, .stTabs [data-baseweb="tab"] p { color: #0B192C !important; font-weight: bold; }
     
-    /* Nút bấm */
     .stButton>button { 
         background-color: #F4C430; color: #0B192C; 
         font-weight: bold; border-radius: 8px; border: none; width: 100%; 
     }
     .stButton>button:hover { background-color: #0B192C; color: #FFFFFF; border: none; }
     
-    /* Ô nhập liệu */
     .stTextInput>div>div>input { background-color: #F8F9FA; color: #333333; border: 1px solid #0B192C; border-radius: 5px; }
-    
-    /* Tab active */
     .stTabs [aria-selected="true"] { border-bottom-color: #0B192C !important; }
     
     /* ================= THIẾT KẾ BẢNG & TEXT CUSTOM ================= */
-    
-    /* Khối Title Gradient */
     .section-title { 
         background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); 
         color: white; 
@@ -43,7 +44,6 @@ st.markdown("""
         text-transform: uppercase;
     }
     
-    /* Bảng HTML Custom */
     .custom-table { 
         width: 100%; 
         border-collapse: separate; 
@@ -63,16 +63,31 @@ st.markdown("""
     .custom-table td:last-child { border-right: none; }
     .custom-table tr:last-child td { border-bottom: none; }
     
-    /* Dấu Tick Custom Gradient */
     .custom-tick { 
-        font-size: 24px; 
+        font-size: 20px; 
         font-weight: 900; 
         background: -webkit-linear-gradient(45deg, #0B192C, #F4C430); 
         -webkit-background-clip: text; 
         -webkit-text-fill-color: transparent; 
     }
     
-    /* Style cho value phía sau dấu : */
+    /* ================= KHỐI THANH TOÁN (FLEXBOX) ================= */
+    .payment-box {
+        display: flex;
+        flex-wrap: wrap;
+        border: 1px solid #E0E6ED; 
+        border-top: none; 
+        border-radius: 0 0 8px 8px; 
+        padding: 20px; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        background-color: #FAFAFA; 
+        margin-bottom: 25px;
+    }
+    .payment-info { flex: 1.3; min-width: 250px; padding-right: 15px; }
+    .payment-qr { flex: 1; min-width: 200px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+    .payment-qr img { max-width: 100%; border-radius: 8px; border: 1px solid #EEEEEE; }
+    .qr-caption { font-size: 13px; color: #888; margin-top: 8px;}
+    
     .highlight-val { color: #D4AF37; font-weight: bold; font-size: 16px;} 
     .info-row { margin-bottom: 15px; font-size: 15px; border-bottom: 1px dashed #EEEEEE; padding-bottom: 10px;}
     
@@ -123,63 +138,82 @@ with tab1:
         if phone_input:
             clean_input = phone_input.strip().lstrip('0')
             df['Phone_Compare'] = df['SDT full'].astype(str).str.lstrip('0')
-            user_row = df[df['Phone_Compare'] == clean_input]
             
-            if not user_row.empty:
-                user_data = user_row.iloc[0]
-                is_success = str(user_data.get('Đăng ký thành công', '')).strip() == '✅'
+            # Lấy tất cả các dòng khớp với số điện thoại
+            matched_rows = df[df['Phone_Compare'] == clean_input]
+            
+            if not matched_rows.empty:
+                # Nếu có BẤT KỲ dòng nào Đăng ký thành công -> Tính là thành công
+                is_success = matched_rows['Đăng ký thành công'].astype(str).str.contains('✅').any()
                 
                 if is_success:
-                    # Lấy nickname, nếu trống thì gọi là BẠN
-                    nickname = str(user_data.get('Nickname', '')).strip()
-                    if not nickname or nickname.lower() == 'nan':
-                        nickname = "BẠN"
+                    # Lấy nickname (ưu tiên dòng đầu tiên có chữ)
+                    nicknames = matched_rows['Nickname'].astype(str).replace('nan', '')
+                    valid_nicks = nicknames[nicknames.str.strip() != '']
+                    nickname = valid_nicks.iloc[0].strip() if len(valid_nicks) > 0 else "BẠN"
                     
                     st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
                     
-                    # ---- BẢNG SẢN PHẨM CUSTOM HTML ----
+                    # ---- GỘP SẢN PHẨM ----
                     table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div>"
-                    table_html += "<table class='custom-table'><thead><tr><th>Sản Phẩm</th><th>Lấy</th></tr></thead><tbody>"
+                    table_html += "<table class='custom-table'><thead><tr><th>Sản Phẩm</th><th>Số Lượng</th></tr></thead><tbody>"
+                    
                     for p in products:
-                        tick = "<span class='custom-tick'>✔</span>" if "✅" in str(user_data.get(p, "")) else ""
-                        table_html += f"<tr><td>{p}</td><td>{tick}</td></tr>"
+                        # Đếm tổng số lượng ✅ của sản phẩm này trong tất cả các dòng của khách
+                        count = matched_rows[p].astype(str).str.contains('✅').sum()
+                        val_display = f"<span class='custom-tick'>{count}</span>" if count > 0 else ""
+                        table_html += f"<tr><td>{p}</td><td>{val_display}</td></tr>"
                     table_html += "</tbody></table>"
                     
                     st.markdown(table_html, unsafe_allow_html=True)
                     
-                    # ---- XỬ LÝ FORMAT TIỀN TỆ ----
-                    raw_tien = str(user_data.get('Số tiền', '0'))
-                    tien_digits = re.sub(r'[^\d]', '', raw_tien) 
-                    
-                    if tien_digits:
-                        tien_format = f"{int(tien_digits):,}".replace(',', '.') + " VNĐ"
-                    else:
-                        tien_format = "Đang cập nhật"
-                    # ------------------------------
-
-                    # ---- KHỐI THÔNG TIN THANH TOÁN ----
-                    st.markdown("<div class='section-title'>THÔNG TIN THANH TOÁN</div>", unsafe_allow_html=True)
-                    st.markdown("<div style='border: 1px solid #E0E6ED; border-top:none; border-radius: 0 0 8px 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background-color: #FAFAFA; margin-bottom: 25px;'>", unsafe_allow_html=True)
-                    
-                    col_info, col_qr = st.columns([1.3, 1])
-                    
-                    with col_info:
-                        st.markdown(f"<div class='info-row'><strong>💰 Số tiền cần thanh toán:</strong> <span class='highlight-val'>{tien_format}</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='info-row'><strong>⏳ Hạn chót chuyển khoản:</strong> <span class='highlight-val'>{user_data.get('Hạn chót chuyển khoản', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='info-row'><strong>⏱️ Thời gian còn lại:</strong> <span class='highlight-val'>{user_data.get('Thời gian còn lại', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='info-row'><strong>💳 Trạng thái chuyển khoản:</strong> <span class='highlight-val'>{user_data.get('Chuyển khoản thành công', 'Đang cập nhật')}</span></div>", unsafe_allow_html=True)
-                        
-                        st.markdown("<div style='margin-top: 20px; margin-bottom: 5px;'><strong>NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:</strong></div>", unsafe_allow_html=True)
-                        st.code(f"KHAN - {phone_input.strip()[-3:]}", language="text")
-                        st.info("Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!")
-
-                    with col_qr:
-                        if os.path.exists("TTCK.jpg"):
-                            st.image("TTCK.jpg", caption="Quét mã QR để thanh toán", use_container_width=True)
-                        else:
-                            st.warning("Đang cập nhật mã QR...")
+                    # ---- GỘP TỔNG TIỀN ----
+                    total_tien = 0
+                    for tien_str in matched_rows['Số tiền'].astype(str):
+                        tien_digits = re.sub(r'[^\d]', '', tien_str)
+                        if tien_digits:
+                            total_tien += int(tien_digits)
                             
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    tien_format = f"{total_tien:,}".replace(',', '.') + " VNĐ" if total_tien > 0 else "Đang cập nhật"
+                    
+                    # Lấy Hạn chót & Thời gian từ dòng thành công đầu tiên
+                    first_success = matched_rows[matched_rows['Đăng ký thành công'].astype(str).str.contains('✅')].iloc[0]
+                    han_chot = first_success.get('Hạn chót chuyển khoản', 'Đang cập nhật')
+                    tg_con = first_success.get('Thời gian còn lại', 'Đang cập nhật')
+                    
+                    # Xử lý Trạng thái CK: Nếu có 1 bill nào đang nợ thì báo Đang Cập Nhật
+                    statuses = matched_rows['Chuyển khoản thành công'].astype(str).tolist()
+                    if any("ĐANG CẬP NHẬT" in s for s in statuses):
+                        ck_status = "ĐANG CẬP NHẬT"
+                    elif all("✅ Đã nhận tiền" in s for s in statuses):
+                        ck_status = "✅ Đã nhận tiền, CHỐT ĐƠN NHA!"
+                    else:
+                        ck_status = statuses[0]
+
+                    # ---- KHỐI THÔNG TIN THANH TOÁN GỘP BẰNG HTML/CSS FLEXBOX ----
+                    # Code img xử lý hiển thị linh hoạt
+                    img_tag = f"<img src='data:image/jpeg;base64,{qr_base64}' alt='QR Code'><div class='qr-caption'>Quét mã QR để thanh toán</div>" if qr_base64 else "<div style='color:red;'>Đang cập nhật mã QR...</div>"
+                    
+                    noidung_ck = f"KHAN - {phone_input.strip()[-3:]}"
+                    
+                    payment_html = f"""
+                    <div class='section-title'>THÔNG TIN THANH TOÁN</div>
+                    <div class='payment-box'>
+                        <div class='payment-info'>
+                            <div class='info-row'><strong>💰 Số tiền cần thanh toán:</strong> <span class='highlight-val'>{tien_format}</span></div>
+                            <div class='info-row'><strong>⏳ Hạn chót chuyển khoản:</strong> <span class='highlight-val'>{han_chot}</span></div>
+                            <div class='info-row'><strong>⏱️ Thời gian còn lại:</strong> <span class='highlight-val'>{tg_con}</span></div>
+                            <div class='info-row'><strong>💳 Trạng thái chuyển khoản:</strong> <span class='highlight-val'>{ck_status}</span></div>
+                            <div style='margin-top: 20px; margin-bottom: 5px;'><strong>NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:</strong></div>
+                            <div style='background-color:#F8F9FA; border:1px solid #E0E6ED; padding:10px; border-radius:5px; font-family:monospace; font-size:16px; color:#D4AF37; font-weight:bold; margin-bottom:10px;'>{noidung_ck}</div>
+                            <div style='font-size:14px; color:#155724; background-color:#d4edda; padding:10px; border-radius:5px;'>💡 Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!</div>
+                        </div>
+                        <div class='payment-qr'>
+                            {img_tag}
+                        </div>
+                    </div>
+                    """
+                    st.markdown(payment_html, unsafe_allow_html=True)
 
                 else:
                     st.error("RẤT TIẾC BÀ HONG CÓ ĐĂNG KÝ THÀNH CÔNG ỜI 😭")
@@ -231,7 +265,6 @@ with tab3:
         
         table_data[p] = [tot, event, ship]
     
-    # ---- BẢNG TỔNG HỢP CUSTOM HTML (Đồng bộ style, có viền trên) ----
     tab3_html = "<table class='custom-table' style='border-top: 1px solid #E0E6ED; border-radius: 8px;'><thead><tr><th>Phân loại</th>"
     
     for p in products:
