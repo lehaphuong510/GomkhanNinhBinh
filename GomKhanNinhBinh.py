@@ -8,7 +8,6 @@ from streamlit_gsheets import GSheetsConnection
 # 1. CẤU HÌNH TRANG & GIAO DIỆN
 st.set_page_config(page_title="KẾT QUẢ GOM KHĂN NINH BÌNH", page_icon="🧣", layout="centered")
 
-# Hàm mã hóa ảnh sang Base64
 def get_image_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as img_file:
@@ -17,7 +16,6 @@ def get_image_base64(path):
 
 qr_base64 = get_image_base64("TTCK.jpg")
 
-# Từ điển Mapping Hình ảnh & Tên đầy đủ
 prod_map = {
     "Bandana TTB": {"full": "Bandana Trịnh Thăng Bình", "img": "Bandana TTB.jpg"},
     "Twilly TTB": {"full": "Twilly Trịnh Thăng Bình", "img": "Twilly TTB.jpg"},
@@ -25,7 +23,6 @@ prod_map = {
     "Twilly ĐMN": {"full": "Twilly Đinh Mạnh Ninh", "img": "Twilly ĐMN.jpg"}
 }
 
-# Custom CSS
 st.markdown("""
     <style>
     .stApp { background-color: #FFFFFF; color: #333333; }
@@ -62,12 +59,12 @@ st.markdown("""
     .metric-sub { font-size: 14px; margin-top: 5px; color: #333333; }
     
     .backup-alert { background-color: #FFF3CD; color: #856404; padding: 20px; border-radius: 8px; border: 1px solid #FFEEBA; margin-bottom: 20px; text-align: center; line-height: 1.6; }
+    .cancel-alert { background-color: #F8D7DA; color: #721C24; padding: 20px; border-radius: 8px; border: 1px solid #F5C6CB; margin-bottom: 20px; text-align: center; line-height: 1.6; }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("🧣 KẾT QUẢ GOM KHĂN NINH BÌNH")
 
-# 2. KẾT NỐI DỮ LIỆU
 url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
 
 @st.cache_data(ttl=15) 
@@ -93,7 +90,6 @@ except Exception as e:
 products = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
 total_limits = {"Bandana TTB": 20, "Twilly TTB": 40, "Bandana ĐMN": 20, "Twilly ĐMN": 40}
 
-# 3. TẠO TABS
 tab1, tab2, tab3 = st.tabs(["🔍 TRA CỨU KẾT QUẢ", "📊 THỐNG KÊ ĐĂNG KÝ", "💰 CK THÀNH CÔNG"])
 
 # ================= TAB 1 =================
@@ -110,121 +106,151 @@ with tab1:
             if not matched_rows.empty:
                 backup_items = []
                 official_items = []
+                canceled_items = []
                 
+                # Quét cột "Bạn đăng ký sản phẩm nào?"
                 if 'Bạn đăng ký sản phẩm nào?' in df.columns:
-                    all_products = []
-                    for val in matched_rows['Bạn đăng ký sản phẩm nào?'].astype(str):
-                        if val.strip() and val.lower() != 'nan':
-                            all_products.extend([x.strip() for x in val.split(',')])
-                    
-                    for item in all_products:
-                        if 'DỰ PHÒNG' in item.upper():
-                            clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
-                            if clean_name: backup_items.append(clean_name)
-                        else:
-                            if item: official_items.append(item)
-                            
-                    backup_items = list(set(backup_items))
-                    official_items = list(set(official_items))
+                    for index, row in matched_rows.iterrows():
+                        ans = str(row.get('Bạn đăng ký sản phẩm nào?', ''))
+                        status_ck = str(row.get('Trạng thái chuyển khoản', '')).strip().upper()
+                        
+                        if ans.strip() and ans.lower() != 'nan':
+                            items = [x.strip() for x in ans.split(',')]
+                            for item in items:
+                                if "HỦY SLOT" in status_ck:
+                                    if item: canceled_items.append(item)
+                                elif 'DỰ PHÒNG' in item.upper():
+                                    clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
+                                    if clean_name: backup_items.append(clean_name)
+                                else:
+                                    if item: official_items.append(item)
+                                    
+                backup_items = list(set(backup_items))
+                official_items = list(set(official_items))
+                canceled_items = list(set(canceled_items))
                 
-                is_success = matched_rows['Đăng ký thành công'].astype(str).str.contains('✅').any()
+                # Check trạng thái chung của các dòng chưa bị Hủy
+                active_rows = matched_rows[~matched_rows['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('HỦY SLOT', na=False)]
+                is_success = active_rows['Đăng ký thành công'].astype(str).str.contains('✅').any() if not active_rows.empty else False
 
-                # ---- TRƯỜNG HỢP 1: 100% LÀ DỰ PHÒNG ----
-                if len(backup_items) > 0 and not is_success:
-                    backup_str = ", ".join(backup_items)
+                # Lấy nickname
+                nicknames = matched_rows['Nickname'].astype(str).replace('nan', '')
+                valid_nicks = nicknames[nicknames.str.strip() != '']
+                nickname = valid_nicks.iloc[0].strip() if len(valid_nicks) > 0 else "BẠN"
+
+                # ---- TRƯỜNG HỢP A: BỊ HỦY SLOT ----
+                if len(canceled_items) > 0:
+                    cancel_str = ", ".join(canceled_items)
                     st.markdown(f"""
-                    <div class='backup-alert'>
-                        <strong>BẠN HIỆN ĐANG TRONG DANH SÁCH DỰ PHÒNG, NẾU NHƯ CÓ SLOT CHÍNH HỦY, MÌNH SẼ LIÊN HỆ DANH SÁCH DỰ PHÒNG THEO THỨ TỰ ƯU TIÊN ĐIỀN FORM.</strong><br><br>
-                        <span style='font-size: 15px;'>📦 <i>Sản phẩm bạn đã đăng ký dự phòng:</i> <strong>{backup_str}</strong></span>
+                    <div class='cancel-alert'>
+                        <strong>SLOT CỦA BẠN BỊ HỦY DO HẾT HẠN THANH TOÁN MÀ MÌNH VẪN CHƯA NHẬN ĐƯỢC CHUYỂN KHOẢN 😭</strong><br><br>
+                        <span style='font-size: 15px;'>💔 <i>Sản phẩm đã bị hủy:</i> <strong>{cancel_str}</strong></span>
                     </div>
                     """, unsafe_allow_html=True)
-                    
-                # ---- TRƯỜNG HỢP 2: CÓ ĐĂNG KÝ THÀNH CÔNG (Chính thức hoặc Mix cả 2) ----
-                elif is_success:
-                    nicknames = matched_rows['Nickname'].astype(str).replace('nan', '')
-                    valid_nicks = nicknames[nicknames.str.strip() != '']
-                    nickname = valid_nicks.iloc[0].strip() if len(valid_nicks) > 0 else "BẠN"
-                    
-                    st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ CHỐT ĐƠN THÀNH CÔNG!")
-                    
-                    table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div>"
-                    table_html += "<table class='custom-table'><thead><tr><th>Sản Phẩm</th><th>Số Lượng</th></tr></thead><tbody>"
-                    
-                    for p in products:
-                        count = matched_rows[p].astype(str).str.contains('✅').sum()
-                        val_display = f"<span class='custom-tick'>{count}</span>" if count > 0 else ""
-                        table_html += f"<tr><td>{p}</td><td>{val_display}</td></tr>"
-                    table_html += "</tbody></table>"
-                    
-                    st.markdown(table_html, unsafe_allow_html=True)
-                    
-                    if len(backup_items) > 0:
+                
+                # ---- TRƯỜNG HỢP B: CÒN SLOT ACTIVE ----
+                if not active_rows.empty:
+                    # 100% là dự phòng
+                    if len(backup_items) > 0 and not is_success:
                         backup_str = ", ".join(backup_items)
-                        st.markdown(f"<div style='margin-bottom: 20px; font-style: italic; color: #E74C3C; text-align: center;'>💡 Đối với <strong>{backup_str}</strong>, bạn hiện đang trong danh sách dự phòng, mình sẽ liên hệ theo thứ tự ưu tiên đăng ký nếu có slot chính bị hủy.</div>", unsafe_allow_html=True)
-                    
-                    total_tien = 0
-                    for tien_str in matched_rows['Số tiền'].astype(str):
-                        tien_str_clean = re.sub(r'\.0$', '', str(tien_str).strip())
-                        tien_digits = re.sub(r'[^\d]', '', tien_str_clean)
-                        if tien_digits:
-                            total_tien += int(tien_digits)
+                        st.markdown(f"""
+                        <div class='backup-alert'>
+                            <strong>BẠN HIỆN ĐANG TRONG DANH SÁCH DỰ PHÒNG, NẾU NHƯ CÓ SLOT CHÍNH HỦY, MÌNH SẼ LIÊN HỆ DANH SÁCH DỰ PHÒNG THEO THỨ TỰ ƯU TIÊN ĐIỀN FORM.</strong><br><br>
+                            <span style='font-size: 15px;'>📦 <i>Sản phẩm bạn đã đăng ký dự phòng:</i> <strong>{backup_str}</strong></span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                    # Có đăng ký chính thức
+                    elif is_success:
+                        statuses = active_rows['Trạng thái chuyển khoản'].astype(str).tolist()
+                        
+                        # LOGIC: Hễ có cái nào Đang cập nhật thì tính là đang đợi CK. Nếu tất cả đều xong thì là Chốt Đơn.
+                        if any("ĐANG CẬP NHẬT" in s for s in statuses):
+                            is_chot_don = False
+                            ck_status = "ĐANG CẬP NHẬT"
+                            st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
+                        else:
+                            is_chot_don = True
+                            ck_status = "✅ Đã nhận tiền, CHỐT ĐƠN NHA!"
+                            st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ CHỐT ĐƠN THÀNH CÔNG!")
+                        
+                        table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div>"
+                        table_html += "<table class='custom-table'><thead><tr><th>Sản Phẩm</th><th>Số Lượng</th></tr></thead><tbody>"
+                        
+                        for p in products:
+                            count = active_rows[p].astype(str).str.contains('✅').sum()
+                            val_display = f"<span class='custom-tick'>{count}</span>" if count > 0 else ""
+                            table_html += f"<tr><td>{p}</td><td>{val_display}</td></tr>"
+                        table_html += "</tbody></table>"
+                        
+                        st.markdown(table_html, unsafe_allow_html=True)
+                        
+                        if len(backup_items) > 0:
+                            backup_str = ", ".join(backup_items)
+                            st.markdown(f"<div style='margin-bottom: 20px; font-style: italic; color: #E74C3C; text-align: center;'>💡 Đối với <strong>{backup_str}</strong>, bạn hiện đang trong danh sách dự phòng, mình sẽ liên hệ theo thứ tự ưu tiên đăng ký nếu có slot chính bị hủy.</div>", unsafe_allow_html=True)
+                        
+                        total_tien = 0
+                        for tien_str in active_rows['Số tiền'].astype(str):
+                            tien_str_clean = re.sub(r'\.0$', '', str(tien_str).strip())
+                            tien_digits = re.sub(r'[^\d]', '', tien_str_clean)
+                            if tien_digits:
+                                total_tien += int(tien_digits)
+                                
+                        tien_format = f"{total_tien:,}".replace(',', '.') + " VNĐ" if total_tien > 0 else "Đang cập nhật"
+                        
+                        # TÁCH ĐÔI GIAO DIỆN THANH TOÁN
+                        if is_chot_don:
+                            # 1. GIAO DIỆN ĐÃ CHỐT ĐƠN (Chỉ hiện Info & Group Zalo)
+                            zalo_link_html = """
+                            <div style='margin-top: 15px; font-size: 15px; color: #0052FF; background-color: #E5F0FF; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;'>
+                                💬 BẠN ƠI NHỚ VÀO GROUP ZALO ĐỂ TIỆN THEO DÕI NHA:<br>
+                                <a href='https://zalo.me/g/4cfzit6xrp7y7m8clbar' target='_blank' style='color: #0052FF; text-decoration: underline;'>https://zalo.me/g/4cfzit6xrp7y7m8clbar</a>
+                            </div>
+                            """
+                            payment_html = f"""
+                            <div class='section-title'>THÔNG TIN CHỐT ĐƠN</div>
+                            <div class='payment-box' style='display:block;'>
+                                <div class='payment-info' style='padding-right:0;'>
+                                    <div class='info-row'><strong>💰 Tổng tiền đã thanh toán:</strong> <span class='highlight-val'>{tien_format}</span></div>
+                                    <div class='info-row'><strong>💳 Trạng thái:</strong> <span class='highlight-val'>{ck_status}</span></div>
+                                    {zalo_link_html}
+                                </div>
+                            </div>
+                            """
+                            st.markdown(payment_html, unsafe_allow_html=True)
+                        else:
+                            # 2. GIAO DIỆN ĐANG CHỜ CHUYỂN KHOẢN (Hiện đủ QR và Deadline)
+                            first_success = active_rows[active_rows['Đăng ký thành công'].astype(str).str.contains('✅')].iloc[0]
+                            han_chot = first_success.get('Hạn chót chuyển khoản', 'Đang cập nhật')
+                            tg_con = first_success.get('Thời gian còn lại', 'Đang cập nhật')
                             
-                    tien_format = f"{total_tien:,}".replace(',', '.') + " VNĐ" if total_tien > 0 else "Đang cập nhật"
+                            img_tag = f"<img src='data:image/jpeg;base64,{qr_base64}' alt='QR Code' style='max-width: 100%; border-radius: 8px; border: 1px solid #EEEEEE;'><div class='qr-caption'>Quét mã QR để thanh toán</div>" if qr_base64 else "<div style='color:red;'>Đang cập nhật mã QR...</div>"
+                            noidung_ck = f"KHAN - {phone_input.strip()[-3:]}"
+                            
+                            payment_html = f"""
+                            <div class='section-title'>THÔNG TIN THANH TOÁN</div>
+                            <div class='payment-box'>
+                                <div class='payment-info'>
+                                    <div class='info-row'><strong>💰 Số tiền cần thanh toán:</strong> <span class='highlight-val'>{tien_format}</span></div>
+                                    <div class='info-row'><strong>⏳ Hạn chót chuyển khoản:</strong> <span class='highlight-val'>{han_chot}</span></div>
+                                    <div class='info-row'><strong>⏱️ Thời gian còn lại:</strong> <span class='highlight-val'>{tg_con}</span></div>
+                                    <div class='info-row'><strong>💳 Trạng thái chuyển khoản:</strong> <span class='highlight-val'>{ck_status}</span></div>
+                                    <div style='margin-top: 20px; margin-bottom: 5px;'><strong>NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:</strong></div>
+                                    <div style='background-color:#F8F9FA; border:1px solid #E0E6ED; padding:10px; border-radius:5px; font-family:monospace; font-size:16px; color:#D4AF37; font-weight:bold; margin-bottom:10px;'>{noidung_ck}</div>
+                                    <div style='font-size:14px; color:#155724; background-color:#d4edda; padding:10px; border-radius:5px;'>💡 Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!</div>
+                                </div>
+                                <div class='payment-qr'>
+                                    {img_tag}
+                                </div>
+                            </div>
+                            """
+                            st.markdown(payment_html, unsafe_allow_html=True)                   
+                            st.warning("🔄 Lưu ý: Sau khi chuyển khoản, bạn vui lòng đợi khoảng 15 phút rồi bấm nút KẾT QUẢ lại một lần nữa để kiểm tra trạng thái nhé!")
+                
+                # Nếu chỉ có dòng Hủy, không có dòng Active nào
+                elif len(canceled_items) == 0:
+                    st.warning("Thông tin đăng ký của bạn chưa được xác nhận. Bạn vui lòng liên hệ admin để kiểm tra nhé!")
                     
-                    first_success = matched_rows[matched_rows['Đăng ký thành công'].astype(str).str.contains('✅')].iloc[0]
-                    han_chot = first_success.get('Hạn chót chuyển khoản', 'Đang cập nhật')
-                    tg_con = first_success.get('Thời gian còn lại', 'Đang cập nhật')
-                    
-                    statuses = matched_rows['Trạng thái chuyển khoản'].astype(str).tolist()
-                    if any("ĐANG CẬP NHẬT" in s for s in statuses):
-                        ck_status = "ĐANG CẬP NHẬT"
-                    elif all("✅ Đã nhận tiền" in s for s in statuses):
-                        ck_status = "✅ Đã nhận tiền, CHỐT ĐƠN NHA!"
-                    else:
-                        ck_status = statuses[0]
-
-                    img_tag = f"<img src='data:image/jpeg;base64,{qr_base64}' alt='QR Code'><div class='qr-caption'>Quét mã QR để thanh toán</div>" if qr_base64 else "<div style='color:red;'>Đang cập nhật mã QR...</div>"
-                    
-                    noidung_ck = f"KHAN - {phone_input.strip()[-3:]}"
-                    
-                    # Link Zalo chèn thêm khi đã thanh toán thành công
-                    zalo_link_html = ""
-                    if "✅ Đã nhận tiền" in ck_status:
-                        zalo_link_html = """
-                        <div style='margin-top: 15px; font-size: 15px; color: #0052FF; background-color: #E5F0FF; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;'>
-                            💬 BẠN ƠI NHỚ VÀO GROUP ZALO ĐỂ TIỆN THEO DÕI NHA:<br>
-                            <a href='https://zalo.me/g/4cfzit6xrp7y7m8clbar' target='_blank' style='color: #0052FF; text-decoration: underline;'>https://zalo.me/g/4cfzit6xrp7y7m8clbar</a>
-                        </div>
-                        """
-                    
-                    payment_html = f"""
-                    <div class='section-title'>THÔNG TIN THANH TOÁN</div>
-                    <div class='payment-box'>
-                        <div class='payment-info'>
-                            <div class='info-row'><strong>💰 Số tiền cần thanh toán:</strong> <span class='highlight-val'>{tien_format}</span></div>
-                            <div class='info-row'><strong>⏳ Hạn chót chuyển khoản:</strong> <span class='highlight-val'>{han_chot}</span></div>
-                            <div class='info-row'><strong>⏱️ Thời gian còn lại:</strong> <span class='highlight-val'>{tg_con}</span></div>
-                            <div class='info-row'><strong>💳 Trạng thái chuyển khoản:</strong> <span class='highlight-val'>{ck_status}</span></div>
-                            <div style='margin-top: 20px; margin-bottom: 5px;'><strong>NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:</strong></div>
-                            <div style='background-color:#F8F9FA; border:1px solid #E0E6ED; padding:10px; border-radius:5px; font-family:monospace; font-size:16px; color:#D4AF37; font-weight:bold; margin-bottom:10px;'>{noidung_ck}</div>
-                            <div style='font-size:14px; color:#155724; background-color:#d4edda; padding:10px; border-radius:5px;'>💡 Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!</div>
-                            {zalo_link_html}
-                        </div>
-                        <div class='payment-qr'>
-                            {img_tag}
-                        </div>
-                    </div>
-                    """
-                    st.markdown(payment_html, unsafe_allow_html=True)                   
-                    st.warning("🔄 Lưu ý: Sau khi chuyển khoản, bạn vui lòng đợi khoảng 15 phút rồi bấm nút KẾT QUẢ lại một lần nữa để kiểm tra trạng thái chuyển khoản nhé!")
-
-                # ---- TRƯỜNG HỢP 3: TẠCH (Bị Hủy hoặc Không có gì) ----
-                else:
-                    status_upper = matched_rows['Trạng thái chuyển khoản'].astype(str).str.upper().tolist()
-                    if any("HỦY SLOT" in s for s in status_upper):
-                        st.error("SLOT CỦA BẠN BỊ HỦY DO HẾT HẠN THANH TOÁN MÀ MÌNH VẪN CHƯA NHẬN ĐƯỢC CHUYỂN KHOẢN 😭")
-                    else:
-                        st.warning("Thông tin đăng ký của bạn chưa được xác nhận (Không có slot chính thức hoặc dự phòng). Bạn vui lòng liên hệ admin để kiểm tra nhé!")
             else:
                 st.warning("Không tìm thấy số điện thoại này trong hệ thống. Vui lòng kiểm tra lại!")
         else:
@@ -243,11 +269,9 @@ with tab2:
         limit_main = total_limits[p]
         limit_backup = 5
         
-        # Đếm số lượng Active bằng dấu ✅ (Vì HỦY SLOT thì ✅ đã bị xóa)
         main_success = df[p].astype(str).str.contains('✅').sum()
         main_remaining = max(0, limit_main - main_success)
         
-        # Quét data để đếm số Hủy và số Dự phòng Active
         cancelled_main = 0
         backup_active = 0
         
