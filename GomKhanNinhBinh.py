@@ -8,7 +8,7 @@ from streamlit_gsheets import GSheetsConnection
 # 1. CẤU HÌNH TRANG & GIAO DIỆN
 st.set_page_config(page_title="KẾT QUẢ GOM KHĂN NINH BÌNH", page_icon="🧣", layout="centered")
 
-# Hàm mã hóa ảnh sang Base64 để nhúng thẳng vào HTML (Khắc phục khe hở)
+# Hàm mã hóa ảnh sang Base64
 def get_image_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as img_file:
@@ -17,44 +17,27 @@ def get_image_base64(path):
 
 qr_base64 = get_image_base64("TTCK.jpg")
 
-# Custom CSS cho theme Nền Trắng, Nhấn Navy & Mustard
+# Từ điển Mapping Hình ảnh & Tên đầy đủ
+prod_map = {
+    "Bandana TTB": {"full": "Bandana Trịnh Thăng Bình", "img": "Bandana TTB.jpg"},
+    "Twilly TTB": {"full": "Twilly Trịnh Thăng Bình", "img": "Twilly TTB.jpg"},
+    "Bandana ĐMN": {"full": "Bandana Đinh Mạnh Ninh", "img": "Bandana ĐMN.jpg"},
+    "Twilly ĐMN": {"full": "Twilly Đinh Mạnh Ninh", "img": "Twilly ĐMN.jpg"}
+}
+
+# Custom CSS
 st.markdown("""
     <style>
     .stApp { background-color: #FFFFFF; color: #333333; }
     h1, h2, h3, .stTabs [data-baseweb="tab"] p { color: #0B192C !important; font-weight: bold; }
     
-    .stButton>button { 
-        background-color: #F4C430; color: #0B192C; 
-        font-weight: bold; border-radius: 8px; border: none; width: 100%; 
-    }
+    .stButton>button { background-color: #F4C430; color: #0B192C; font-weight: bold; border-radius: 8px; border: none; width: 100%; }
     .stButton>button:hover { background-color: #0B192C; color: #FFFFFF; border: none; }
-    
     .stTextInput>div>div>input { background-color: #F8F9FA; color: #333333; border: 1px solid #0B192C; border-radius: 5px; }
     .stTabs [aria-selected="true"] { border-bottom-color: #0B192C !important; }
     
-    /* ================= THIẾT KẾ BẢNG & TEXT CUSTOM ================= */
-    .section-title { 
-        background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); 
-        color: white; 
-        padding: 12px 15px; 
-        border-radius: 8px 8px 0 0; 
-        font-size: 16px; 
-        font-weight: bold; 
-        margin-top: 25px;
-        text-transform: uppercase;
-    }
-    
-    .custom-table { 
-        width: 100%; 
-        border-collapse: separate; 
-        border-spacing: 0;
-        margin-bottom: 20px; 
-        border: 1px solid #E0E6ED;
-        border-top: none;
-        border-radius: 0 0 8px 8px; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        overflow: hidden;
-    }
+    .section-title { background: linear-gradient(90deg, #0B192C 0%, #F4C430 100%); color: white; padding: 12px 15px; border-radius: 8px 8px 0 0; font-size: 16px; font-weight: bold; margin-top: 25px; text-transform: uppercase; }
+    .custom-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 20px; border: 1px solid #E0E6ED; border-top: none; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
     .custom-table thead tr { background-color: #1A2B4C; } 
     .custom-table th { color: white; padding: 12px 14px; text-align: center; font-size: 15px; border: none; }
     .custom-table th:first-child { text-align: left; }
@@ -63,26 +46,9 @@ st.markdown("""
     .custom-table td:last-child { border-right: none; }
     .custom-table tr:last-child td { border-bottom: none; }
     
-    .custom-tick { 
-        font-size: 20px; 
-        font-weight: 900; 
-        background: -webkit-linear-gradient(45deg, #0B192C, #F4C430); 
-        -webkit-background-clip: text; 
-        -webkit-text-fill-color: transparent; 
-    }
+    .custom-tick { font-size: 20px; font-weight: 900; background: -webkit-linear-gradient(45deg, #0B192C, #F4C430); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     
-    /* ================= KHỐI THANH TOÁN (FLEXBOX) ================= */
-    .payment-box {
-        display: flex;
-        flex-wrap: wrap;
-        border: 1px solid #E0E6ED; 
-        border-top: none; 
-        border-radius: 0 0 8px 8px; 
-        padding: 20px; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-        background-color: #FAFAFA; 
-        margin-bottom: 25px;
-    }
+    .payment-box { display: flex; flex-wrap: wrap; border: 1px solid #E0E6ED; border-top: none; border-radius: 0 0 8px 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background-color: #FAFAFA; margin-bottom: 25px; }
     .payment-info { flex: 1.3; min-width: 250px; padding-right: 15px; }
     .payment-qr { flex: 1; min-width: 200px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;}
     .payment-qr img { max-width: 100%; border-radius: 8px; border: 1px solid #EEEEEE; }
@@ -91,19 +57,11 @@ st.markdown("""
     .highlight-val { color: #D4AF37; font-weight: bold; font-size: 16px;} 
     .info-row { margin-bottom: 15px; font-size: 15px; border-bottom: 1px dashed #EEEEEE; padding-bottom: 10px;}
     
-    /* Card Thống kê */
-    .metric-card { 
-        background-color: #FFFFFF; border: 1px solid #E0E6ED; border-top: 5px solid #0B192C; 
-        padding: 15px; border-radius: 8px; margin-bottom: 15px; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .metric-title { font-size: 16px; color: #0B192C; font-weight: bold; }
-    .metric-value { font-size: 26px; font-weight: bold; color: #F4C430; }
-    .metric-sub { font-size: 14px; color: #888888; margin-top: 5px; }
+    .metric-card { background-color: #FFFFFF; border: 1px solid #E0E6ED; border-top: 5px solid #0B192C; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .metric-title { font-size: 15px; color: #0B192C; font-weight: bold; text-transform: uppercase; margin-bottom: 10px;}
+    .metric-sub { font-size: 14px; margin-top: 5px; color: #333333; }
     
-    .backup-alert {
-        background-color: #FFF3CD; color: #856404; padding: 20px; border-radius: 8px; border: 1px solid #FFEEBA; margin-bottom: 20px; text-align: center; line-height: 1.6;
-    }
+    .backup-alert { background-color: #FFF3CD; color: #856404; padding: 20px; border-radius: 8px; border: 1px solid #FFEEBA; margin-bottom: 20px; text-align: center; line-height: 1.6; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -121,7 +79,6 @@ def load_data():
     if 'SDT full' in df.columns:
         df['SDT full'] = df['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         
-    # Tự động map tên cột để tránh lỗi KeyError
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
         
@@ -137,7 +94,7 @@ products = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
 total_limits = {"Bandana TTB": 20, "Twilly TTB": 40, "Bandana ĐMN": 20, "Twilly ĐMN": 40}
 
 # 3. TẠO TABS
-tab1, tab2, tab3 = st.tabs(["🔍 TRA CỨU KẾT QUẢ", "📊 ĐĂNG KÝ THÀNH CÔNG", "💰 CK THÀNH CÔNG"])
+tab1, tab2, tab3 = st.tabs(["🔍 TRA CỨU KẾT QUẢ", "📊 THỐNG KÊ ĐĂNG KÝ", "💰 CK THÀNH CÔNG"])
 
 # ================= TAB 1 =================
 with tab1:
@@ -148,11 +105,9 @@ with tab1:
         if phone_input:
             clean_input = phone_input.strip().lstrip('0')
             df['Phone_Compare'] = df['SDT full'].astype(str).str.lstrip('0')
-            
             matched_rows = df[df['Phone_Compare'] == clean_input]
             
             if not matched_rows.empty:
-                # 1. Quét tìm tất cả sản phẩm Khách đã chọn (Bóc tách Dự phòng và Chính)
                 backup_items = []
                 official_items = []
                 
@@ -190,7 +145,7 @@ with tab1:
                     valid_nicks = nicknames[nicknames.str.strip() != '']
                     nickname = valid_nicks.iloc[0].strip() if len(valid_nicks) > 0 else "BẠN"
                     
-                    st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
+                    st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ CHỐT ĐƠN THÀNH CÔNG!")
                     
                     table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div>"
                     table_html += "<table class='custom-table'><thead><tr><th>Sản Phẩm</th><th>Số Lượng</th></tr></thead><tbody>"
@@ -203,8 +158,6 @@ with tab1:
                     
                     st.markdown(table_html, unsafe_allow_html=True)
                     
-                    # Hiển thị thông báo phụ cho sản phẩm dự phòng (Nếu khách có mix dự phòng)
-                    # Sửa lỗi Markdown, thay bằng thẻ <strong> của HTML
                     if len(backup_items) > 0:
                         backup_str = ", ".join(backup_items)
                         st.markdown(f"<div style='margin-bottom: 20px; font-style: italic; color: #E74C3C; text-align: center;'>💡 Đối với <strong>{backup_str}</strong>, bạn hiện đang trong danh sách dự phòng, mình sẽ liên hệ theo thứ tự ưu tiên đăng ký nếu có slot chính bị hủy.</div>", unsafe_allow_html=True)
@@ -234,6 +187,16 @@ with tab1:
                     
                     noidung_ck = f"KHAN - {phone_input.strip()[-3:]}"
                     
+                    # Link Zalo chèn thêm khi đã thanh toán thành công
+                    zalo_link_html = ""
+                    if "✅ Đã nhận tiền" in ck_status:
+                        zalo_link_html = """
+                        <div style='margin-top: 15px; font-size: 15px; color: #0052FF; background-color: #E5F0FF; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;'>
+                            💬 BẠN ƠI NHỚ VÀO GROUP ZALO ĐỂ TIỆN THEO DÕI NHA:<br>
+                            <a href='https://zalo.me/g/4cfzit6xrp7y7m8clbar' target='_blank' style='color: #0052FF; text-decoration: underline;'>https://zalo.me/g/4cfzit6xrp7y7m8clbar</a>
+                        </div>
+                        """
+                    
                     payment_html = f"""
                     <div class='section-title'>THÔNG TIN THANH TOÁN</div>
                     <div class='payment-box'>
@@ -245,6 +208,7 @@ with tab1:
                             <div style='margin-top: 20px; margin-bottom: 5px;'><strong>NỘI DUNG CHUYỂN KHOẢN CỦA BẠN:</strong></div>
                             <div style='background-color:#F8F9FA; border:1px solid #E0E6ED; padding:10px; border-radius:5px; font-family:monospace; font-size:16px; color:#D4AF37; font-weight:bold; margin-bottom:10px;'>{noidung_ck}</div>
                             <div style='font-size:14px; color:#155724; background-color:#d4edda; padding:10px; border-radius:5px;'>💡 Vui lòng ghi chính xác nội dung để hệ thống tự động chốt đơn nhé!</div>
+                            {zalo_link_html}
                         </div>
                         <div class='payment-qr'>
                             {img_tag}
@@ -254,9 +218,13 @@ with tab1:
                     st.markdown(payment_html, unsafe_allow_html=True)                   
                     st.warning("🔄 Lưu ý: Sau khi chuyển khoản, bạn vui lòng đợi khoảng 15 phút rồi bấm nút KẾT QUẢ lại một lần nữa để kiểm tra trạng thái chuyển khoản nhé!")
 
-                # ---- TRƯỜNG HỢP 3: TẠCH (Không có dữ liệu hợp lệ) ----
+                # ---- TRƯỜNG HỢP 3: TẠCH (Bị Hủy hoặc Không có gì) ----
                 else:
-                    st.warning("Thông tin đăng ký của bạn chưa được xác nhận (Không có slot chính thức hoặc dự phòng). Bạn vui lòng liên hệ admin để kiểm tra nhé!")
+                    status_upper = matched_rows['Trạng thái chuyển khoản'].astype(str).str.upper().tolist()
+                    if any("HỦY SLOT" in s for s in status_upper):
+                        st.error("SLOT CỦA BẠN BỊ HỦY DO HẾT HẠN THANH TOÁN MÀ MÌNH VẪN CHƯA NHẬN ĐƯỢC CHUYỂN KHOẢN 😭")
+                    else:
+                        st.warning("Thông tin đăng ký của bạn chưa được xác nhận (Không có slot chính thức hoặc dự phòng). Bạn vui lòng liên hệ admin để kiểm tra nhé!")
             else:
                 st.warning("Không tìm thấy số điện thoại này trong hệ thống. Vui lòng kiểm tra lại!")
         else:
@@ -264,33 +232,60 @@ with tab1:
 
 # ================= TAB 2 =================
 with tab2:
-    st.markdown("### 📊 TIẾN ĐỘ ĐĂNG KÝ")
-    
-    df_registered = df[df['Đăng ký thành công'].astype(str).str.contains('✅', na=False)]
+    st.markdown("### 📊 THỐNG KÊ ĐĂNG KÝ")
     col1, col2 = st.columns(2)
     
     for i, p in enumerate(products):
-        mask_p = df_registered[p].astype(str).str.contains('✅', na=False)
-        df_p = df_registered[mask_p]
+        full_name = prod_map[p]["full"]
+        img_name = prod_map[p]["img"]
+        img_b64 = get_image_base64(img_name)
         
-        total_raw = len(df_p)
+        limit_main = total_limits[p]
+        limit_backup = 5
         
-        if 'Trạng thái chuyển khoản' in df_p.columns:
-            cancelled_p = len(df_p[df_p['Trạng thái chuyển khoản'].astype(str).str.strip().str.upper() == 'HỦY SLOT'])
-        else:
-            cancelled_p = 0
-            
-        official_registered = total_raw - cancelled_p
+        # Đếm số lượng Active bằng dấu ✅ (Vì HỦY SLOT thì ✅ đã bị xóa)
+        main_success = df[p].astype(str).str.contains('✅').sum()
+        main_remaining = max(0, limit_main - main_success)
         
-        total = total_limits[p]
-        rem_count = total - official_registered if (total - official_registered) > 0 else 0
+        # Quét data để đếm số Hủy và số Dự phòng Active
+        cancelled_main = 0
+        backup_active = 0
+        
+        if 'Bạn đăng ký sản phẩm nào?' in df.columns:
+            for index, row in df.iterrows():
+                ans = str(row.get('Bạn đăng ký sản phẩm nào?', ''))
+                status = str(row.get('Trạng thái chuyển khoản', '')).strip().upper()
+                
+                items = [x.strip() for x in ans.split(',')]
+                for item in items:
+                    is_backup = 'DỰ PHÒNG' in item.upper()
+                    clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
+                    
+                    if clean_name == full_name:
+                        if not is_backup and status == 'HỦY SLOT':
+                            cancelled_main += 1
+                        elif is_backup and status != 'HỦY SLOT':
+                            backup_active += 1
+                            
+        backup_remaining = max(0, limit_backup - backup_active)
+        call_backup = min(cancelled_main, 5)
+        need_new = cancelled_main - 5 if cancelled_main > 5 else 0
+        
+        img_html = f"<img src='data:image/jpeg;base64,{img_b64}' style='width:100%; border-radius:8px; border:1px solid #EEEEEE;'>" if img_b64 else ""
         
         card_html = f"""
-        <div class="metric-card">
-            <div class="metric-title">{p}</div>
-            <div class="metric-value">{official_registered} <span style="font-size:14px; color:#A0B2C6;">/ {total}</span></div>
-            <div class="metric-sub" style="color: #E74C3C; margin-top: 8px;">❌ Đã hủy slot: {cancelled_p}</div>
-            <div class="metric-sub" style="color: #27AE60; font-weight: bold; font-size: 15px;">🔄 Dự phòng cần gọi: {rem_count} slot</div>
+        <div class="metric-card" style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="flex: 1; max-width: 100px;">
+                {img_html}
+            </div>
+            <div style="flex: 2.5; padding-left: 15px;">
+                <div class="metric-title">{full_name}</div>
+                <div class="metric-sub"><strong>✅ Chính thức:</strong> {main_success} / {limit_main} (Còn {main_remaining})</div>
+                <div class="metric-sub"><strong>📦 Dự phòng:</strong> {backup_active} / {limit_backup} (Còn {backup_remaining})</div>
+                <div class="metric-sub" style="color: #E74C3C; margin-top: 5px;"><strong>❌ Hủy slot do không CK:</strong> {cancelled_main}</div>
+                <div class="metric-sub" style="color: #27AE60;"><strong>🔄 Gọi thêm từ dự phòng:</strong> {call_backup}</div>
+                {f'<div class="metric-sub" style="color: #C0392B; font-weight: bold; background-color: #FADBD8; padding: 5px; border-radius: 4px; display: inline-block; margin-top: 5px;">🚨 Cần gọi ĐK mới: {need_new} slot</div>' if need_new > 0 else ''}
+            </div>
         </div>
         """
         if i % 2 == 0:
