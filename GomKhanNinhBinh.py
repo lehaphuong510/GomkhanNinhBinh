@@ -111,7 +111,7 @@ url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9D
 @st.cache_data(ttl=15) 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
-    df = conn.read(spreadsheet=url)
+    df = conn.read(spreadsheet=url, worksheet="Data App")
     df.columns = df.columns.str.strip()
     if 'SDT full' in df.columns:
         df['SDT full'] = df['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
