@@ -63,8 +63,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🧣 KẾT QUẢ GOM KHĂN NINH BÌNH")
-
 url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
 
 @st.cache_data(ttl=15) 
@@ -104,104 +102,93 @@ with tab1:
             matched_rows = df[df['Phone_Compare'] == clean_input]
             
             if not matched_rows.empty:
-                backup_items = []
-                official_items = []
-                canceled_items = []
-                
-                # Quét cột "Bạn đăng ký sản phẩm nào?"
-                if 'Bạn đăng ký sản phẩm nào?' in df.columns:
-                    for index, row in matched_rows.iterrows():
-                        ans = str(row.get('Bạn đăng ký sản phẩm nào?', ''))
-                        status_ck = str(row.get('Trạng thái chuyển khoản', '')).strip().upper()
-                        
-                        if ans.strip() and ans.lower() != 'nan':
-                            items = [x.strip() for x in ans.split(',')]
-                            for item in items:
-                                if "HỦY SLOT" in status_ck:
-                                    if item: canceled_items.append(item)
-                                elif 'DỰ PHÒNG' in item.upper():
-                                    clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
-                                    if clean_name: backup_items.append(clean_name)
-                                else:
-                                    if item: official_items.append(item)
-                                    
-                backup_items = list(set(backup_items))
-                official_items = list(set(official_items))
-                canceled_items = list(set(canceled_items))
-                
-                # Check trạng thái chung của các dòng chưa bị Hủy
-                active_rows = matched_rows[~matched_rows['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('HỦY SLOT', na=False)]
-                is_success = active_rows['Đăng ký thành công'].astype(str).str.contains('✅').any() if not active_rows.empty else False
-
-                # Lấy nickname
+                # Lấy nickname chung cho SĐT
                 nicknames = matched_rows['Nickname'].astype(str).replace('nan', '')
                 valid_nicks = nicknames[nicknames.str.strip() != '']
                 nickname = valid_nicks.iloc[0].strip() if len(valid_nicks) > 0 else "BẠN"
-
-                # ---- TRƯỜNG HỢP A: BỊ HỦY SLOT ----
-                if len(canceled_items) > 0:
-                    cancel_str = ", ".join(canceled_items)
-                    st.markdown(f"""
-                    <div class='cancel-alert'>
-                        <strong>SLOT CỦA BẠN BỊ HỦY DO HẾT HẠN THANH TOÁN MÀ MÌNH VẪN CHƯA NHẬN ĐƯỢC CHUYỂN KHOẢN 😭</strong><br><br>
-                        <span style='font-size: 15px;'>💔 <i>Sản phẩm đã bị hủy:</i> <strong>{cancel_str}</strong></span>
-                    </div>
-                    """, unsafe_allow_html=True)
                 
-                # ---- TRƯỜNG HỢP B: CÒN SLOT ACTIVE ----
-                if not active_rows.empty:
-                    # 100% là dự phòng
-                    if len(backup_items) > 0 and not is_success:
-                        backup_str = ", ".join(backup_items)
+                has_any_output = False
+                
+                # 1. BÓC TÁCH VÀ XỬ LÝ CÁC DÒNG BỊ HỦY SLOT
+                canceled_rows = matched_rows[matched_rows['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('HỦY SLOT', na=False)]
+                if not canceled_rows.empty:
+                    canceled_items = []
+                    for ans in canceled_rows['Bạn đăng ký sản phẩm nào?'].astype(str):
+                        if ans.strip() and ans.lower() != 'nan':
+                            canceled_items.extend([x.strip() for x in ans.split(',') if x.strip()])
+                    canceled_items = list(set(canceled_items))
+                    
+                    if canceled_items:
+                        cancel_str = ", ".join(canceled_items)
                         st.markdown(f"""
-                        <div class='backup-alert'>
-                            <strong>BẠN HIỆN ĐANG TRONG DANH SÁCH DỰ PHÒNG, NẾU NHƯ CÓ SLOT CHÍNH HỦY, MÌNH SẼ LIÊN HỆ DANH SÁCH DỰ PHÒNG THEO THỨ TỰ ƯU TIÊN ĐIỀN FORM.</strong><br><br>
-                            <span style='font-size: 15px;'>📦 <i>Sản phẩm bạn đã đăng ký dự phòng:</i> <strong>{backup_str}</strong></span>
+                        <div class='cancel-alert'>
+                            <strong>SLOT CỦA BẠN BỊ HỦY DO HẾT HẠN THANH TOÁN MÀ MÌNH VẪN CHƯA NHẬN ĐƯỢC CHUYỂN KHOẢN 😭</strong><br><br>
+                            <span style='font-size: 15px;'>💔 <i>Sản phẩm đã bị hủy:</i> <strong>{cancel_str}</strong></span>
                         </div>
                         """, unsafe_allow_html=True)
+                        has_any_output = True
+
+                # 2. BÓC TÁCH VÀ XỬ LÝ CÁC DÒNG ACTIVE (Có Đăng ký thành công)
+                active_rows = matched_rows[matched_rows['Đăng ký thành công'].astype(str).str.contains('✅', na=False)]
+                if not active_rows.empty:
+                    # Gộp nhóm các dòng Active theo đúng trạng thái chuyển khoản
+                    unique_statuses = active_rows['Trạng thái chuyển khoản'].astype(str).unique()
+                    
+                    for idx, status in enumerate(unique_statuses):
+                        # Lấy riêng các dòng có cùng trạng thái này
+                        group_rows = active_rows[active_rows['Trạng thái chuyển khoản'].astype(str) == status]
+                        is_chot_don = "✅ Đã nhận tiền" in status
                         
-                    # Có đăng ký chính thức
-                    elif is_success:
-                        statuses = active_rows['Trạng thái chuyển khoản'].astype(str).tolist()
-                        
-                        # LOGIC: Hễ có cái nào Đang cập nhật thì tính là đang đợi CK. Nếu tất cả đều xong thì là Chốt Đơn.
-                        if any("ĐANG CẬP NHẬT" in s for s in statuses):
-                            is_chot_don = False
-                            ck_status = "ĐANG CẬP NHẬT"
-                            st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
-                        else:
-                            is_chot_don = True
-                            ck_status = "✅ Đã nhận tiền, CHỐT ĐƠN NHA!"
+                        if is_chot_don:
                             st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ CHỐT ĐƠN THÀNH CÔNG!")
-                        
+                            ck_status = "✅ Đã nhận tiền, CHỐT ĐƠN NHA!"
+                        else:
+                            st.success(f"🎉 CHÚC MỪNG {nickname.upper()} ĐÃ ĐĂNG KÝ THÀNH CÔNG!")
+                            ck_status = "ĐANG CẬP NHẬT"
+                            
+                        # Bảng sản phẩm riêng cho nhóm bill này
                         table_html = "<div class='section-title'>SẢN PHẨM ĐĂNG KÝ THÀNH CÔNG</div>"
                         table_html += "<table class='custom-table'><thead><tr><th>Sản Phẩm</th><th>Số Lượng</th></tr></thead><tbody>"
-                        
                         for p in products:
-                            count = active_rows[p].astype(str).str.contains('✅').sum()
+                            count = group_rows[p].astype(str).str.contains('✅').sum()
                             val_display = f"<span class='custom-tick'>{count}</span>" if count > 0 else ""
                             table_html += f"<tr><td>{p}</td><td>{val_display}</td></tr>"
                         table_html += "</tbody></table>"
-                        
                         st.markdown(table_html, unsafe_allow_html=True)
                         
-                        if len(backup_items) > 0:
+                        # Xử lý Cảnh báo món Dự phòng trộn lẫn trong bill này
+                        backup_items = []
+                        for ans in group_rows['Bạn đăng ký sản phẩm nào?'].astype(str):
+                            if ans.strip() and ans.lower() != 'nan':
+                                items = [x.strip() for x in ans.split(',')]
+                                for item in items:
+                                    if 'DỰ PHÒNG' in item.upper():
+                                        clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
+                                        if clean_name: backup_items.append(clean_name)
+                        backup_items = list(set(backup_items))
+                        
+                        if backup_items:
                             backup_str = ", ".join(backup_items)
                             st.markdown(f"<div style='margin-bottom: 20px; font-style: italic; color: #E74C3C; text-align: center;'>💡 Đối với <strong>{backup_str}</strong>, bạn hiện đang trong danh sách dự phòng, mình sẽ liên hệ theo thứ tự ưu tiên đăng ký nếu có slot chính bị hủy.</div>", unsafe_allow_html=True)
                         
+                        # Tính tổng tiền cho nhóm bill này
                         total_tien = 0
-                        for tien_str in active_rows['Số tiền'].astype(str):
+                        for tien_str in group_rows['Số tiền'].astype(str):
                             tien_str_clean = re.sub(r'\.0$', '', str(tien_str).strip())
                             tien_digits = re.sub(r'[^\d]', '', tien_str_clean)
                             if tien_digits:
                                 total_tien += int(tien_digits)
-                                
                         tien_format = f"{total_tien:,}".replace(',', '.') + " VNĐ" if total_tien > 0 else "Đang cập nhật"
                         
-                        # TÁCH ĐÔI GIAO DIỆN THANH TOÁN
+                        # Lấy thời gian từ dòng điền trễ nhất trong nhóm bill này
+                        latest_row = group_rows.iloc[-1]
+                        han_chot = latest_row.get('Hạn chót chuyển khoản', 'Đang cập nhật')
+                        tg_con = latest_row.get('Thời gian còn lại', 'Đang cập nhật')
+                        noidung_ck = f"KHAN - {phone_input.strip()[-3:]}"
+                        
+                        # PHÂN TÁCH LUỒNG GIAO DIỆN THANH TOÁN
                         if is_chot_don:
-                            # 1. GIAO DIỆN ĐÃ CHỐT ĐƠN (Chỉ hiện Info & Group Zalo)
-                            zalo_link_html = """
+                            zalo_link_html = f"""
                             <div style='margin-top: 15px; font-size: 15px; color: #0052FF; background-color: #E5F0FF; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;'>
                                 💬 BẠN ƠI NHỚ VÀO GROUP ZALO ĐỂ TIỆN THEO DÕI NHA:<br>
                                 <a href='https://zalo.me/g/4cfzit6xrp7y7m8clbar' target='_blank' style='color: #0052FF; text-decoration: underline;'>https://zalo.me/g/4cfzit6xrp7y7m8clbar</a>
@@ -219,14 +206,7 @@ with tab1:
                             """
                             st.markdown(payment_html, unsafe_allow_html=True)
                         else:
-                            # 2. GIAO DIỆN ĐANG CHỜ CHUYỂN KHOẢN (Hiện đủ QR và Deadline)
-                            first_success = active_rows[active_rows['Đăng ký thành công'].astype(str).str.contains('✅')].iloc[0]
-                            han_chot = first_success.get('Hạn chót chuyển khoản', 'Đang cập nhật')
-                            tg_con = first_success.get('Thời gian còn lại', 'Đang cập nhật')
-                            
                             img_tag = f"<img src='data:image/jpeg;base64,{qr_base64}' alt='QR Code' style='max-width: 100%; border-radius: 8px; border: 1px solid #EEEEEE;'><div class='qr-caption'>Quét mã QR để thanh toán</div>" if qr_base64 else "<div style='color:red;'>Đang cập nhật mã QR...</div>"
-                            noidung_ck = f"KHAN - {phone_input.strip()[-3:]}"
-                            
                             payment_html = f"""
                             <div class='section-title'>THÔNG TIN THANH TOÁN</div>
                             <div class='payment-box'>
@@ -246,9 +226,43 @@ with tab1:
                             """
                             st.markdown(payment_html, unsafe_allow_html=True)                   
                             st.warning("🔄 Lưu ý: Sau khi chuyển khoản, bạn vui lòng đợi khoảng 15 phút rồi bấm nút KẾT QUẢ lại một lần nữa để kiểm tra trạng thái nhé!")
-                
-                # Nếu chỉ có dòng Hủy, không có dòng Active nào
-                elif len(canceled_items) == 0:
+                        
+                        # Kẻ đường phân cách nếu SĐT này có nhiều bill trạng thái khác nhau
+                        if idx < len(unique_statuses) - 1:
+                            st.markdown("<br><hr style='border: 1px dashed #CCC;'><br>", unsafe_allow_html=True)
+                            
+                        has_any_output = True
+
+                # 3. BÓC TÁCH VÀ XỬ LÝ CÁC DÒNG 100% DỰ PHÒNG (Chờ duyệt, không có dấu ✅)
+                backup_only_rows = matched_rows[
+                    (~matched_rows['Đăng ký thành công'].astype(str).str.contains('✅', na=False)) & 
+                    (~matched_rows['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('HỦY SLOT', na=False))
+                ]
+                if not backup_only_rows.empty:
+                    backup_items_only = []
+                    for ans in backup_only_rows['Bạn đăng ký sản phẩm nào?'].astype(str):
+                        if ans.strip() and ans.lower() != 'nan':
+                            items = [x.strip() for x in ans.split(',')]
+                            for item in items:
+                                if 'DỰ PHÒNG' in item.upper():
+                                    clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
+                                    if clean_name: backup_items_only.append(clean_name)
+                    
+                    backup_items_only = list(set(backup_items_only))
+                    if backup_items_only:
+                        if has_any_output:
+                            st.markdown("<br><hr style='border: 1px dashed #CCC;'><br>", unsafe_allow_html=True)
+                        backup_str = ", ".join(backup_items_only)
+                        st.markdown(f"""
+                        <div class='backup-alert'>
+                            <strong>BẠN HIỆN ĐANG TRONG DANH SÁCH DỰ PHÒNG, NẾU NHƯ CÓ SLOT CHÍNH HỦY, MÌNH SẼ LIÊN HỆ DANH SÁCH DỰ PHÒNG THEO THỨ TỰ ƯU TIÊN ĐIỀN FORM.</strong><br><br>
+                            <span style='font-size: 15px;'>📦 <i>Sản phẩm bạn đã đăng ký dự phòng:</i> <strong>{backup_str}</strong></span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        has_any_output = True
+
+                # Nếu Quét sạch sành sanh mà vẫn không rơi vào 3 cái phễu trên
+                if not has_any_output:
                     st.warning("Thông tin đăng ký của bạn chưa được xác nhận. Bạn vui lòng liên hệ admin để kiểm tra nhé!")
                     
             else:
