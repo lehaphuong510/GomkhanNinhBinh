@@ -78,7 +78,17 @@ def quet_tinh_thanh(dia_chi):
 # ================= XỬ LÝ DỮ LIỆU =================
 @st.cache_data(ttl=60)
 def load_data():
-    return pd.read_csv(csv_url)
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    df = conn.read(spreadsheet=url, worksheet="Data App")
+    df.columns = df.columns.str.strip()
+    
+    if 'SDT full' in df.columns:
+        df['SDT full'] = df['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        
+    if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
+        df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
+        
+    return df
 
 try:
     df_raw = load_data()
