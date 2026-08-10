@@ -8,7 +8,7 @@ st.title("📦 HỆ THỐNG LỌC ĐỊA CHỈ SHIP - NỘI BỘ")
 
 # ID Sheet của m (Đã điền sẵn)
 SHEET_ID = '1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU' 
-SHEET_NAME = 'Data App'
+SHEET_NAME = 'Data%20App'
 csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
 # ================= ĐIỀN TÊN CỘT =================
