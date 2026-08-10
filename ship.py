@@ -10,7 +10,7 @@ st.title("📦 HỆ THỐNG LỌC ĐỊA CHỈ SHIP - NỘI BỘ")
 # ID Sheet của m (Đã điền sẵn)
 SHEET_ID = '1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU' 
 SHEET_NAME = 'Data%20App'
-csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
+
 
 # ================= ĐIỀN TÊN CỘT =================
 # Mấy cột này t bốc từ code cũ qua, đảm bảo đúng 100%:
@@ -76,6 +76,7 @@ def quet_tinh_thanh(dia_chi):
     return "Tỉnh khác (Cần check tay)"
 
 # ================= XỬ LÝ DỮ LIỆU =================
+url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
 @st.cache_data(ttl=60)
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
