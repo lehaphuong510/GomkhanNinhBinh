@@ -275,7 +275,7 @@ with tab1:
 # CÁI CÔNG TẮC ẨN/HIỆN THỐNG KÊ NẰM Ở ĐÂY NHA M:
 # Đổi thành False nếu muốn ẨN (hiện chữ Hệ thống đang cập nhật)
 # Đổi thành True nếu muốn HIỆN toàn bộ bảng thống kê
-HIENTHI_THONGKE = False 
+HIENTHI_THONGKE = True 
 
 # ================= TAB 2 =================
 with tab2:
