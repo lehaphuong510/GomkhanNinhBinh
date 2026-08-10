@@ -113,11 +113,34 @@ try:
         st.error(f"❌ Không tìm thấy cột '{COL_DIA_CHI}' trong Sheet! M nhớ check lại tên cột nha.")
         st.stop()
     
+    
     # ================= GIAO DIỆN HIỂN THỊ =================
     st.subheader("1. 📊 Bảng tổng hợp số lượng theo tỉnh")
     
+    # 1. Đếm Số lượng đơn tổng theo từng tỉnh trước
     df_tong_hop = df_chot_don['Tỉnh Thành'].value_counts().reset_index()
     df_tong_hop.columns = ['Tỉnh Thành', 'Số lượng đơn']
+    
+    # 2. Quét đếm từng món sản phẩm và ghép cột vào bảng
+    for p in COLS_SAN_PHAM:
+        if p in df_chot_don.columns:
+            # Rà xem ở cột sản phẩm này, dòng nào có tick ✅
+            df_mon_nay = df_chot_don[df_chot_don[p].astype(str).str.contains('✅', na=False)]
+            
+            # Đếm số lượng tick ✅ đó theo từng tỉnh
+            dem_mon = df_mon_nay['Tỉnh Thành'].value_counts().reset_index()
+            dem_mon.columns = ['Tỉnh Thành', p]
+            
+            # Gắn cái cột mới đếm được vào bảng tổng hợp chung
+            df_tong_hop = pd.merge(df_tong_hop, dem_mon, on='Tỉnh Thành', how='left')
+            
+    # 3. Dọn dẹp số liệu cho đẹp (Trám số 0 vào những ô trống, ép kiểu thành số nguyên)
+    df_tong_hop = df_tong_hop.fillna(0)
+    for col in df_tong_hop.columns:
+        if col != 'Tỉnh Thành':
+            df_tong_hop[col] = df_tong_hop[col].astype(int)
+            
+    # In cái bảng ra màn hình
     st.dataframe(df_tong_hop, use_container_width=True)
     
     st.divider()
