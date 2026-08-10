@@ -68,7 +68,7 @@ st.markdown("<h1 style='text-align: center; color: #0B192C; margin-bottom: 30px;
 
 url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
 
-@st.cache_data(ttl=15) 
+@st.cache_data(ttl=60) 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(spreadsheet=url, worksheet="Data App")
