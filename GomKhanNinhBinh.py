@@ -272,16 +272,17 @@ with tab1:
         else:
             st.warning("Bạn chưa nhập số điện thoại kìa!")
 
-# CÁI CÔNG TẮC ẨN/HIỆN THỐNG KÊ NẰM Ở ĐÂY NHA M:
-# Đổi thành False nếu muốn ẨN (hiện chữ Hệ thống đang cập nhật)
-# Đổi thành True nếu muốn HIỆN toàn bộ bảng thống kê
-HIENTHI_THONGKE = False 
+# MẬT KHẨU NỘI BỘ DÀNH CHO EKIP
+ADMIN_PASSWORD = "8994"
 
 # ================= TAB 2 =================
 with tab2:
     st.markdown("### 📊 THỐNG KÊ ĐĂNG KÝ")
     
-    if HIENTHI_THONGKE:
+    # Ô nhập mật khẩu (sẽ bị ẩn ký tự thành dấu chấm)
+    pass_t2 = st.text_input("🔐 Vui lòng nhập mật khẩu nội bộ để xem thống kê:", type="password", key="pass_t2")
+    
+    if pass_t2 == ADMIN_PASSWORD:
         col1, col2 = st.columns(2)
         
         for i, p in enumerate(products):
@@ -302,9 +303,9 @@ with tab2:
                 for index, row in df.iterrows():
                     ans = str(row.get('Bạn đăng ký sản phẩm nào?', ''))
                     status = str(row.get('Trạng thái chuyển khoản', '')).strip().upper()
-                    has_tick = '✅' in str(row.get(p, '')) # Đã bổ sung lại dòng check tick xanh
+                    has_tick = '✅' in str(row.get(p, '')) 
                     
-                    if ans.strip() and ans.lower() != 'nan': # Đã ép kiểu chữ chống lỗi ô trống
+                    if ans.strip() and ans.lower() != 'nan': 
                         items = [x.strip() for x in ans.split(',')]
                         for item in items:
                             is_backup = 'DỰ PHÒNG' in item.upper()
@@ -322,21 +323,23 @@ with tab2:
             
             img_html = f"<img src='data:image/jpeg;base64,{img_b64}' style='width:100%; border-radius:8px; border:1px solid #EEEEEE;'>" if img_b64 else ""
             
-            # Đã nén HTML lại thành 1 dòng để chống lỗi lòi thẻ </div> của Streamlit
             card_html = f"""<div class="metric-card" style="display: flex; align-items: center; justify-content: space-between;"><div style="flex: 1; max-width: 100px;">{img_html}</div><div style="flex: 2.5; padding-left: 15px;"><div class="metric-title">{full_name}</div><div class="metric-sub"><strong>✅ Chính thức:</strong> {main_success} / {limit_main} (Còn {main_remaining})</div><div class="metric-sub"><strong>📦 Dự phòng:</strong> {backup_active} / {limit_backup} (Còn {backup_remaining})</div><div class="metric-sub" style="color: #E74C3C; margin-top: 5px;"><strong>❌ Hủy slot do không CK:</strong> {cancelled_main}</div><div class="metric-sub" style="color: #27AE60;"><strong>🔄 Gọi thêm từ dự phòng:</strong> {call_backup}</div>{f'<div class="metric-sub" style="color: #C0392B; font-weight: bold; background-color: #FADBD8; padding: 5px; border-radius: 4px; display: inline-block; margin-top: 5px;">🚨 Cần gọi ĐK mới: {need_new} slot</div>' if need_new > 0 else ''}</div></div>"""
             if i % 2 == 0:
                 col1.markdown(card_html, unsafe_allow_html=True)
             else:
                 col2.markdown(card_html, unsafe_allow_html=True)
-    else:
-        # Giao diện hiển thị lúc đang đóng công tắc
-        st.info("🔄 Hệ thống đang cập nhật số liệu. Bạn vui lòng quay lại sau nhé!")
+    elif pass_t2 != "":
+        # Nếu gõ sai pass (có gõ chữ nhưng không phải 1234)
+        st.error("❌ Mật khẩu không chính xác!")
 
 # ================= TAB 3 =================
 with tab3:
     st.markdown("### 💰 TỔNG HỢP CHỐT ĐƠN")
     
-    if HIENTHI_THONGKE:
+    # Ô nhập mật khẩu riêng cho Tab 3
+    pass_t3 = st.text_input("🔐 Vui lòng nhập mật khẩu nội bộ để xem tổng hợp:", type="password", key="pass_t3")
+    
+    if pass_t3 == ADMIN_PASSWORD:
         df_ck = df[df['Trạng thái chuyển khoản'].astype(str).str.contains('✅ Đã nhận tiền, CHỐT ĐƠN NHA!', na=False, regex=False)]
         
         table_data = {
@@ -373,6 +376,5 @@ with tab3:
         tab3_html += "</tbody></table>"
         
         st.markdown(tab3_html.replace('\n', ''), unsafe_allow_html=True)
-    else:
-        # Giao diện hiển thị lúc đang đóng công tắc
-        st.info("🔄 Hệ thống đang cập nhật số liệu. Bạn vui lòng chờ thêm một chút nhé!")
+    elif pass_t3 != "":
+        st.error("❌ Mật khẩu không chính xác!")
