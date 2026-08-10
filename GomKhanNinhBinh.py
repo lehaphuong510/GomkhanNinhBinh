@@ -272,103 +272,107 @@ with tab1:
         else:
             st.warning("Bạn chưa nhập số điện thoại kìa!")
 
+# CÁI CÔNG TẮC ẨN/HIỆN THỐNG KÊ NẰM Ở ĐÂY NHA M:
+# Đổi thành False nếu muốn ẨN (hiện chữ Hệ thống đang cập nhật)
+# Đổi thành True nếu muốn HIỆN toàn bộ bảng thống kê
+HIENTHI_THONGKE = False 
+
 # ================= TAB 2 =================
 with tab2:
     st.markdown("### 📊 THỐNG KÊ ĐĂNG KÝ")
-    col1, col2 = st.columns(2)
     
-    for i, p in enumerate(products):
-        full_name = prod_map[p]["full"]
-        img_name = prod_map[p]["img"]
-        img_b64 = get_image_base64(img_name)
+    if HIENTHI_THONGKE:
+        col1, col2 = st.columns(2)
         
-        limit_main = total_limits[p]
-        limit_backup = 5
-        
-        main_success = df[p].astype(str).str.contains('✅').sum()
-        main_remaining = max(0, limit_main - main_success)
-        
-        cancelled_main = 0
-        backup_active = 0
-        
-        if 'Bạn đăng ký sản phẩm nào?' in df.columns:
-            for index, row in df.iterrows():
-                ans = str(row.get('Bạn đăng ký sản phẩm nào?', ''))
-                status = str(row.get('Trạng thái chuyển khoản', '')).strip().upper()
-                
-                items = [x.strip() for x in ans.split(',')]
-                for item in items:
-                    is_backup = 'DỰ PHÒNG' in item.upper()
-                    clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
+        for i, p in enumerate(products):
+            full_name = prod_map[p]["full"]
+            img_name = prod_map[p]["img"]
+            img_b64 = get_image_base64(img_name)
+            
+            limit_main = total_limits[p]
+            limit_backup = 5
+            
+            main_success = df[p].astype(str).str.contains('✅').sum()
+            main_remaining = max(0, limit_main - main_success)
+            
+            cancelled_main = 0
+            backup_active = 0
+            
+            if 'Bạn đăng ký sản phẩm nào?' in df.columns:
+                for index, row in df.iterrows():
+                    ans = str(row.get('Bạn đăng ký sản phẩm nào?', ''))
+                    status = str(row.get('Trạng thái chuyển khoản', '')).strip().upper()
+                    has_tick = '✅' in str(row.get(p, '')) # Đã bổ sung lại dòng check tick xanh
                     
-                    if clean_name == full_name:
-                        if not is_backup and status == 'HỦY SLOT':
-                            cancelled_main += 1
-                        elif is_backup and status != 'HỦY SLOT':
-                            backup_active += 1
+                    if ans.strip() and ans.lower() != 'nan': # Đã ép kiểu chữ chống lỗi ô trống
+                        items = [x.strip() for x in ans.split(',')]
+                        for item in items:
+                            is_backup = 'DỰ PHÒNG' in item.upper()
+                            clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
                             
-        backup_remaining = max(0, limit_backup - backup_active)
-        call_backup = min(cancelled_main, 5)
-        need_new = cancelled_main - 5 if cancelled_main > 5 else 0
-        
-        img_html = f"<img src='data:image/jpeg;base64,{img_b64}' style='width:100%; border-radius:8px; border:1px solid #EEEEEE;'>" if img_b64 else ""
-        
-        # HTML sát lề trái để fix lỗi Streamlit hiện </div> dưới dạng code
-        card_html = f"""<div class="metric-card" style="display: flex; align-items: center; justify-content: space-between;">
-<div style="flex: 1; max-width: 100px;">
-{img_html}
-</div>
-<div style="flex: 2.5; padding-left: 15px;">
-<div class="metric-title">{full_name}</div>
-<div class="metric-sub"><strong>✅ Chính thức:</strong> {main_success} / {limit_main} (Còn {main_remaining})</div>
-<div class="metric-sub"><strong>📦 Dự phòng:</strong> {backup_active} / {limit_backup} (Còn {backup_remaining})</div>
-<div class="metric-sub" style="color: #E74C3C; margin-top: 5px;"><strong>❌ Hủy slot do không CK:</strong> {cancelled_main}</div>
-<div class="metric-sub" style="color: #27AE60;"><strong>🔄 Gọi thêm từ dự phòng:</strong> {call_backup}</div>
-{f'<div class="metric-sub" style="color: #C0392B; font-weight: bold; background-color: #FADBD8; padding: 5px; border-radius: 4px; display: inline-block; margin-top: 5px;">🚨 Cần gọi ĐK mới: {need_new} slot</div>' if need_new > 0 else ''}
-</div>
-</div>"""
-        if i % 2 == 0:
-            col1.markdown(card_html, unsafe_allow_html=True)
-        else:
-            col2.markdown(card_html, unsafe_allow_html=True)
+                            if clean_name == full_name:
+                                if not is_backup and status == 'HỦY SLOT':
+                                    cancelled_main += 1
+                                elif is_backup and status != 'HỦY SLOT' and not has_tick:
+                                    backup_active += 1
+                                    
+            backup_remaining = max(0, limit_backup - backup_active)
+            call_backup = min(cancelled_main, 5)
+            need_new = cancelled_main - 5 if cancelled_main > 5 else 0
+            
+            img_html = f"<img src='data:image/jpeg;base64,{img_b64}' style='width:100%; border-radius:8px; border:1px solid #EEEEEE;'>" if img_b64 else ""
+            
+            # Đã nén HTML lại thành 1 dòng để chống lỗi lòi thẻ </div> của Streamlit
+            card_html = f"""<div class="metric-card" style="display: flex; align-items: center; justify-content: space-between;"><div style="flex: 1; max-width: 100px;">{img_html}</div><div style="flex: 2.5; padding-left: 15px;"><div class="metric-title">{full_name}</div><div class="metric-sub"><strong>✅ Chính thức:</strong> {main_success} / {limit_main} (Còn {main_remaining})</div><div class="metric-sub"><strong>📦 Dự phòng:</strong> {backup_active} / {limit_backup} (Còn {backup_remaining})</div><div class="metric-sub" style="color: #E74C3C; margin-top: 5px;"><strong>❌ Hủy slot do không CK:</strong> {cancelled_main}</div><div class="metric-sub" style="color: #27AE60;"><strong>🔄 Gọi thêm từ dự phòng:</strong> {call_backup}</div>{f'<div class="metric-sub" style="color: #C0392B; font-weight: bold; background-color: #FADBD8; padding: 5px; border-radius: 4px; display: inline-block; margin-top: 5px;">🚨 Cần gọi ĐK mới: {need_new} slot</div>' if need_new > 0 else ''}</div></div>"""
+            if i % 2 == 0:
+                col1.markdown(card_html, unsafe_allow_html=True)
+            else:
+                col2.markdown(card_html, unsafe_allow_html=True)
+    else:
+        # Giao diện hiển thị lúc đang đóng công tắc
+        st.info("🔄 Hệ thống đang cập nhật số liệu. Bạn vui lòng quay lại sau nhé!")
 
 # ================= TAB 3 =================
 with tab3:
     st.markdown("### 💰 TỔNG HỢP CHỐT ĐƠN")
     
-    df_ck = df[df['Trạng thái chuyển khoản'].astype(str).str.contains('✅ Đã nhận tiền, CHỐT ĐƠN NHA!', na=False, regex=False)]
-    
-    table_data = {
-        "Phân loại": ["Tổng cộng", "Nhận tại sự kiện", "Ship về nhà"]
-    }
-    
-    for p in products:
-        df_ck_p = df_ck[df_ck[p].astype(str).str.contains('✅', na=False)]
+    if HIENTHI_THONGKE:
+        df_ck = df[df['Trạng thái chuyển khoản'].astype(str).str.contains('✅ Đã nhận tiền, CHỐT ĐƠN NHA!', na=False, regex=False)]
         
-        tot = len(df_ck_p)
-        event = 0
-        ship = 0
+        table_data = {
+            "Phân loại": ["Tổng cộng", "Nhận tại sự kiện", "Ship về nhà"]
+        }
         
-        if 'Nơi nhận' in df_ck_p.columns:
-            event = len(df_ck_p[df_ck_p['Nơi nhận'].astype(str).str.strip() == "Nhận tại Love at first sight 29/8 ở Hà Nội"])
-            ship = len(df_ck_p[df_ck_p['Nơi nhận'].astype(str).str.strip() == "Ship về nhà"])
-        
-        table_data[p] = [tot, event, ship]
-    
-    tab3_html = "<table class='custom-table' style='border-top: 1px solid #E0E6ED; border-radius: 8px;'><thead><tr><th>Phân loại</th>"
-    
-    for p in products:
-        tab3_html += f"<th>{p}</th>"
-    tab3_html += "</tr></thead><tbody>"
-    
-    for i in range(3):
-        tab3_html += f"<tr><td>{table_data['Phân loại'][i]}</td>"
         for p in products:
-            val = table_data[p][i]
-            display_val = val if val > 0 else ""
-            tab3_html += f"<td>{display_val}</td>"
-        tab3_html += "</tr>"
+            df_ck_p = df_ck[df_ck[p].astype(str).str.contains('✅', na=False)]
+            
+            tot = len(df_ck_p)
+            event = 0
+            ship = 0
+            
+            if 'Nơi nhận' in df_ck_p.columns:
+                event = len(df_ck_p[df_ck_p['Nơi nhận'].astype(str).str.strip() == "Nhận tại Love at first sight 29/8 ở Hà Nội"])
+                ship = len(df_ck_p[df_ck_p['Nơi nhận'].astype(str).str.strip() == "Ship về nhà"])
+            
+            table_data[p] = [tot, event, ship]
         
-    tab3_html += "</tbody></table>"
-    
-    st.markdown(tab3_html, unsafe_allow_html=True)
+        tab3_html = "<table class='custom-table' style='border-top: 1px solid #E0E6ED; border-radius: 8px;'><thead><tr><th>Phân loại</th>"
+        
+        for p in products:
+            tab3_html += f"<th>{p}</th>"
+        tab3_html += "</tr></thead><tbody>"
+        
+        for i in range(3):
+            tab3_html += f"<tr><td>{table_data['Phân loại'][i]}</td>"
+            for p in products:
+                val = table_data[p][i]
+                display_val = val if val > 0 else ""
+                tab3_html += f"<td>{display_val}</td>"
+            tab3_html += "</tr>"
+            
+        tab3_html += "</tbody></table>"
+        
+        st.markdown(tab3_html.replace('\n', ''), unsafe_allow_html=True)
+    else:
+        # Giao diện hiển thị lúc đang đóng công tắc
+        st.info("🔄 Hệ thống đang cập nhật số liệu. Bạn vui lòng chờ thêm một chút nhé!")
