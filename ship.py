@@ -21,6 +21,7 @@ COLS_SAN_PHAM = [
     'Bandana ĐMN', 
     'Twilly ĐMN'
 ]
+COL_NOI_NHAN = 'Nơi nhận' # M check lại tên cột này trên Sheet cho chuẩn nha
 
 # 👇👇👇 [CHECK LẠI] M ngó vào Sheet xem 3 tên cột này viết chính xác là gì nha:
 COL_TEN = 'Nickname' 
@@ -97,6 +98,14 @@ try:
     # 1. Lọc bạo lực: Chỉ lấy những đơn có chữ "CHỐT ĐƠN"
     df_chot_don = df_raw[df_raw[COL_TRANG_THAI].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)].copy()
     
+    
+    # 👇👇 CHÈN THÊM DÒNG NÀY ĐỂ LỌC PHỄU 2 (CHỈ LẤY SHIP) 👇👇
+    if COL_NOI_NHAN in df_chot_don.columns:
+        # Lấy những dòng có chứa chữ "Ship"
+        df_chot_don = df_chot_don[df_chot_don[COL_NOI_NHAN].astype(str).str.upper().str.contains('SHIP', na=False)]
+    # 👆👆 ------------------------------------------------ 👆👆
+
+       
     # 2. Tạo thêm cột Tỉnh Thành bằng hàm quét Regex
     if COL_DIA_CHI in df_chot_don.columns:
         df_chot_don['Tỉnh Thành'] = df_chot_don[COL_DIA_CHI].apply(quet_tinh_thanh)
