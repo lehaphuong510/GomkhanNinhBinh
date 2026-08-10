@@ -340,23 +340,37 @@ with tab3:
     pass_t3 = st.text_input("🔐 Vui lòng nhập mật khẩu nội bộ để xem tổng hợp:", type="password", key="pass_t3")
     
     if pass_t3 == ADMIN_PASSWORD:
-        df_ck = df[df['Trạng thái chuyển khoản'].astype(str).str.contains('✅ Đã nhận tiền, CHỐT ĐƠN NHA!', na=False, regex=False)]
+        # Lọc bạo lực: Cứ dòng nào chứa chữ CHỐT ĐƠN là lấy hết
+        df_ck = df[df['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)]
         
         table_data = {
             "Phân loại": ["Tổng cộng", "Nhận tại sự kiện", "Ship về nhà"]
         }
         
         for p in products:
-            df_ck_p = df_ck[df_ck[p].astype(str).str.contains('✅', na=False)]
-            
-            tot = len(df_ck_p)
+            full_name = prod_map[p]["full"]
+            tot = 0
             event = 0
             ship = 0
             
-            if 'Nơi nhận' in df_ck_p.columns:
-                event = len(df_ck_p[df_ck_p['Nơi nhận'].astype(str).str.strip() == "Nhận tại Love at first sight 29/8 ở Hà Nội"])
-                ship = len(df_ck_p[df_ck_p['Nơi nhận'].astype(str).str.strip() == "Ship về nhà"])
-            
+            if 'Bạn đăng ký sản phẩm nào?' in df_ck.columns:
+                for index, row in df_ck.iterrows():
+                    ans = str(row.get('Bạn đăng ký sản phẩm nào?', ''))
+                    if ans.strip() and ans.lower() != 'nan':
+                        items = [x.strip() for x in ans.split(',')]
+                        for item in items:
+                            # Gọt bỏ chữ DỰ PHÒNG nếu có để đếm cho chuẩn
+                            clean_name = re.sub(r'[-\s\(]*DỰ PHÒNG[-\s\)]*', '', item, flags=re.IGNORECASE).strip()
+                            
+                            if clean_name == full_name:
+                                tot += 1
+                                noi_nhan = str(row.get('Nơi nhận', '')).strip().upper()
+                                # Quét từ khóa cho an toàn, bất chấp sai chính tả nhẹ
+                                if "LOVE" in noi_nhan or "SỰ KIỆN" in noi_nhan or "HÀ NỘI" in noi_nhan:
+                                    event += 1
+                                elif "SHIP" in noi_nhan:
+                                    ship += 1
+                                    
             table_data[p] = [tot, event, ship]
         
         tab3_html = "<table class='custom-table' style='border-top: 1px solid #E0E6ED; border-radius: 8px;'><thead><tr><th>Phân loại</th>"
