@@ -187,7 +187,53 @@ try:
     st.dataframe(df_hien_thi[cot_thuc_te], use_container_width=True, hide_index=True)
 
     st.divider()
-    st.subheader("3. 🖨️ Xuất File In Label (Dán Decal)")
+
+    st.subheader("3. 📊 Xuất File Excel (Mẫu GHTK)")    
+    if st.button("Tạo File Excel GHTK cho danh sách trên"):
+        # 1. Tạo một DataFrame mới tinh để đóng gói theo đúng chuẩn ĐVVC
+        df_export = pd.DataFrame()
+        
+        # Hàm đếm số lượng: Quét 4 cột sản phẩm xem có bao nhiêu tick ✅
+        def dem_so_luong(row):
+            count = 0
+            for p in COLS_SAN_PHAM:
+                if "✅" in str(row.get(p, '')):
+                    count += 1
+            return count if count > 0 else 1 # Tránh ra 0 nếu data có lỗi
+            
+        # 2. Lắp ráp từng cột theo đúng thứ tự m dặn
+        df_export['Mã ĐH riêng'] = ""
+        df_export['Tên khách hàng'] = df_hien_thi.get(COL_TEN, '')
+        df_export['SĐT'] = df_hien_thi.get(COL_SDT, '')
+        df_export['Địa chỉ chi tiết'] = df_hien_thi.get(COL_DIA_CHI, '')
+        
+        # Mấy cột mới này nếu trên Sheet m chưa có thì nó sẽ tự để trống không báo lỗi
+        df_export['Tên sản phẩm'] = df_hien_thi.get('Sản phẩm đăng ký thành công', '')
+        df_export['Số lượng'] = df_hien_thi.apply(dem_so_luong, axis=1)
+        df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
+        df_export['Giá trị hàng'] = df_hien_thi.get('Số tiền', '')
+        df_export['Tiền CoD'] = ""
+        df_export['Dịch vụ gia tăng'] = ""
+        df_export['Hình thức lấy hàng'] = ""
+        df_export['Phiên lấy hàng'] = df_hien_thi.get('Phiên lấy hàng', '')
+        df_export['Dịch vụ & Hình thức VC'] = ""
+        df_export['Trả ship'] = "Khách trả"
+        
+        # 3. Đóng gói thành file Excel (lưu vào bộ nhớ đệm)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df_export.to_excel(writer, index=False, sheet_name='Sheet1')
+        excel_data = output.getvalue()
+        
+        # 4. Hiện nút Download file về máy
+        st.download_button(
+            label="📥 TẢI FILE EXCEL (.xlsx)",
+            data=excel_data,
+            file_name="Don_Ship_DVVC.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    
+    st.subheader("4. 🖨️ Xuất File In Label (Dán Decal)")
     
     # Check xem sheet đã có cột Mã vận đơn chưa, chưa có thì gán rỗng để không bị lỗi
     COL_MVD = 'Mã vận đơn'
@@ -272,6 +318,8 @@ try:
             file_name="Label_Giao_Hang.html",
             mime="text/html"
         )
+
+        
 
 except Exception as e:
     st.error(f"Lỗi rồi m ơi: {e}")
