@@ -85,7 +85,10 @@ def load_data():
     df.columns = df.columns.str.strip()
     
     if 'SDT full' in df.columns:
+        # Gọt đuôi .0 (nếu có) và xóa khoảng trắng thừa
         df['SDT full'] = df['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        # Bơm lại số 0 đằng trước nếu lỡ bị Google Sheet gọt mất
+        df['SDT full'] = df['SDT full'].apply(lambda x: '0' + x if x.isdigit() and not x.startswith('0') else x)
         
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
@@ -202,29 +205,43 @@ try:
         """
 
         # Chạy vòng lặp quét từng đơn để tạo Label
+        # Chạy vòng lặp quét từng đơn để tạo Label
         for index, row in df_hien_thi.iterrows():
             ten = row.get(COL_TEN, '')
             sdt = str(row.get(COL_SDT, '')).replace('.0', '')
             diachi = row.get(COL_DIA_CHI, '')
             mvd = row.get(COL_MVD, '')
             
-            # Xử lý logic Tick box (Có ✅ thì in ☑️, không thì in ⬜)
-            p1 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[0], '')) else "⬜"
-            p2 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[1], '')) else "⬜"
-            p3 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[2], '')) else "⬜"
-            p4 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[3], '')) else "⬜"
+            # Xử lý logic Tick box và In đậm (Có tick = đậm, không tick = mỏng)
+            has_p1 = "✅" in str(row.get(COLS_SAN_PHAM[0], ''))
+            b1 = "☑️ <b>BD Trịnh Thăng Bình</b>" if has_p1 else "⬜ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
+            
+            has_p2 = "✅" in str(row.get(COLS_SAN_PHAM[1], ''))
+            b2 = "☑️ <b>TW Trịnh Thăng Bình</b>" if has_p2 else "⬜ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
+            
+            has_p3 = "✅" in str(row.get(COLS_SAN_PHAM[2], ''))
+            b3 = "☑️ <b>BD Đinh Mạnh Ninh</b>" if has_p3 else "⬜ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
+            
+            has_p4 = "✅" in str(row.get(COLS_SAN_PHAM[3], ''))
+            b4 = "☑️ <b>TW Đinh Mạnh Ninh</b>" if has_p4 else "⬜ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
 
-            # Gắn data vào khung
+            # Gắn data vào khung (Dùng Flexbox chia 2 bên trái/phải)
             html_content += f"""
             <div class="label-box">
                 <div class="title">📦 MÃ VĐ: {mvd}</div>
                 <div class="info">👤 <b>{ten}</b> <br>📞 {sdt}</div>
                 <div class="info">🏠 {diachi}</div>
-                <div class="products">
-                    <div class="prod-item">{p1} BD Trịnh Thăng Bình</div>
-                    <div class="prod-item">{p2} TW Trịnh Thăng Bình</div>
-                    <div class="prod-item">{p3} BD Đinh Mạnh Ninh</div>
-                    <div class="prod-item">{p4} TW Đinh Mạnh Ninh</div>
+                
+                <!-- Bố cục chia 2 cột -->
+                <div class="products" style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px;">
+                    <div style="flex: 1; padding-right: 5px;">
+                        <div style="margin-bottom: 4px;">{b1}</div>
+                        <div style="margin-bottom: 4px;">{b2}</div>
+                    </div>
+                    <div style="flex: 1; padding-left: 5px;">
+                        <div style="margin-bottom: 4px;">{b3}</div>
+                        <div style="margin-bottom: 4px;">{b4}</div>
+                    </div>
                 </div>
             </div>
             """
