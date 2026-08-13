@@ -167,6 +167,78 @@ try:
     
     st.dataframe(df_hien_thi[cot_thuc_te], use_container_width=True, hide_index=True)
 
+    st.divider()
+    st.subheader("3. 🖨️ Xuất File In Label (Dán Decal)")
+    
+    # Check xem sheet đã có cột Mã vận đơn chưa, chưa có thì gán rỗng để không bị lỗi
+    COL_MVD = 'Mã vận đơn'
+    if COL_MVD not in df_hien_thi.columns:
+        df_hien_thi[COL_MVD] = ""
+
+    if st.button("Tạo File In Label cho danh sách trên"):
+        # Cấu hình giao diện bản in (CSS)
+        html_content = """
+        <html><head><meta charset="utf-8">
+        <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
+            .grid-container { 
+                display: grid; 
+                grid-template-columns: repeat(2, 1fr); /* Chia 2 cột trên giấy A4 */
+                gap: 15px; 
+            }
+            .label-box { 
+                border: 2px dashed #000; /* Viền đứt nét để dễ căn cắt */
+                padding: 15px; 
+                border-radius: 8px; 
+                box-sizing: border-box; 
+                page-break-inside: avoid; /* Chống cắt nửa cái label khi sang trang mới */
+            }
+            .title { font-weight: bold; font-size: 18px; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 5px;}
+            .info { font-size: 15px; margin-bottom: 5px; line-height: 1.4; }
+            .products { margin-top: 10px; font-size: 14px; font-weight: bold;}
+            .prod-item { display: inline-block; width: 48%; margin-bottom: 4px; } /* Chia 2 cột cho sp */
+        </style></head><body>
+        <div class="grid-container">
+        """
+
+        # Chạy vòng lặp quét từng đơn để tạo Label
+        for index, row in df_hien_thi.iterrows():
+            ten = row.get(COL_TEN, '')
+            sdt = str(row.get(COL_SDT, '')).replace('.0', '')
+            diachi = row.get(COL_DIA_CHI, '')
+            mvd = row.get(COL_MVD, '')
+            
+            # Xử lý logic Tick box (Có ✅ thì in ☑️, không thì in ⬜)
+            p1 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[0], '')) else "⬜"
+            p2 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[1], '')) else "⬜"
+            p3 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[2], '')) else "⬜"
+            p4 = "☑️" if "✅" in str(row.get(COLS_SAN_PHAM[3], '')) else "⬜"
+
+            # Gắn data vào khung
+            html_content += f"""
+            <div class="label-box">
+                <div class="title">📦 MÃ VĐ: {mvd}</div>
+                <div class="info">👤 <b>{ten}</b> <br>📞 {sdt}</div>
+                <div class="info">🏠 {diachi}</div>
+                <div class="products">
+                    <div class="prod-item">{p1} BD Trịnh Thăng Bình</div>
+                    <div class="prod-item">{p2} TW Trịnh Thăng Bình</div>
+                    <div class="prod-item">{p3} BD Đinh Mạnh Ninh</div>
+                    <div class="prod-item">{p4} TW Đinh Mạnh Ninh</div>
+                </div>
+            </div>
+            """
+
+        html_content += "</div></body></html>"
+
+        # Nút tải file về máy
+        st.download_button(
+            label="📥 TẢI FILE IN (.html)",
+            data=html_content,
+            file_name="Label_Giao_Hang.html",
+            mime="text/html"
+        )
+
 except Exception as e:
     st.error(f"Lỗi rồi m ơi: {e}")
     st.info("Nhớ kiểm tra lại Tên Cột ở phần [CHECK LẠI] xem m gõ đúng 100% chữ cái hoa/thường trên Sheet chưa nha!")
