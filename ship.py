@@ -225,11 +225,22 @@ try:
             df_export.to_excel(writer, index=False, sheet_name='Sheet1')
         excel_data = output.getvalue()
         
+        # TẠO TÊN FILE THÔNG MINH
+        if "Tất cả" in tinh_duoc_chon or len(tinh_duoc_chon) == 0:
+            ten_file = "GHTK_Tat_Ca.xlsx"
+        else:
+            # Nối tên các tỉnh m đã chọn lại (ví dụ: Hồ Chí Minh_Hà Nội)
+            chuoi_tinh = "_".join(tinh_duoc_chon)
+            # Nếu tên dài quá (do chọn nhiều tỉnh) thì gộp chung cho an toàn
+            if len(chuoi_tinh) > 40:
+                chuoi_tinh = "Nhieu_Tinh_Thanh"
+            ten_file = f"GHTK_{chuoi_tinh}.xlsx"
+        
         # 4. Hiện nút Download file về máy
         st.download_button(
             label="📥 TẢI FILE EXCEL (.xlsx)",
             data=excel_data,
-            file_name="Don_Ship_DVVC.xlsx",
+            file_name=ten_file,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     
