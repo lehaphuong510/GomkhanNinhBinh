@@ -159,12 +159,19 @@ try:
     st.subheader("2. 🔍 Trích xuất danh sách gửi Ship")
     danh_sach_tinh = sorted(df_chot_don['Tỉnh Thành'].unique().tolist())
     
-    tinh_duoc_chon = st.selectbox("👉 Chọn Tỉnh/Thành phố muốn xem:", ["Tất cả"] + danh_sach_tinh)
+    # Đổi thành multiselect cho phép chọn nhiều tỉnh cùng lúc
+    tinh_duoc_chon = st.multiselect(
+        "👉 Chọn Tỉnh/Thành phố muốn xem (Có thể chọn nhiều):", 
+        ["Tất cả"] + danh_sach_tinh, 
+        default=["Tất cả"]
+    )
     
-    if tinh_duoc_chon == "Tất cả":
+    # Xử lý logic lọc nhiều tỉnh
+    if "Tất cả" in tinh_duoc_chon or len(tinh_duoc_chon) == 0:
         df_hien_thi = df_chot_don
     else:
-        df_hien_thi = df_chot_don[df_chot_don['Tỉnh Thành'] == tinh_duoc_chon]
+        # Lọc ra những đơn có tỉnh nằm trong danh sách đã chọn
+        df_hien_thi = df_chot_don[df_chot_don['Tỉnh Thành'].isin(tinh_duoc_chon)]
         
     # Gom các cột cần thiết
     cot_can_xem = [COL_TEN, COL_SDT, COL_DIA_CHI] + COLS_SAN_PHAM
@@ -221,17 +228,18 @@ try:
             mvd = row.get(COL_MVD, '')
             
             # Xử lý logic Tick box và In đậm (Có tick = đậm, không tick = mỏng)
+            # Xử lý logic Tick box và In đậm, Tô màu
             has_p1 = "✅" in str(row.get(COLS_SAN_PHAM[0], ''))
-            b1 = "☑️ <b>BD Trịnh Thăng Bình</b>" if has_p1 else "⬜ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
+            b1 = "☑️ <b style='color: navy;'>BD Trịnh Thăng Bình</b>" if has_p1 else "⬜ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
             
             has_p2 = "✅" in str(row.get(COLS_SAN_PHAM[1], ''))
-            b2 = "☑️ <b>TW Trịnh Thăng Bình</b>" if has_p2 else "⬜ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
+            b2 = "☑️ <b style='color: navy;'>TW Trịnh Thăng Bình</b>" if has_p2 else "⬜ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
             
             has_p3 = "✅" in str(row.get(COLS_SAN_PHAM[2], ''))
-            b3 = "☑️ <b>BD Đinh Mạnh Ninh</b>" if has_p3 else "⬜ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
+            b3 = "☑️ <b style='color: #D49A00;'>BD Đinh Mạnh Ninh</b>" if has_p3 else "⬜ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
             
             has_p4 = "✅" in str(row.get(COLS_SAN_PHAM[3], ''))
-            b4 = "☑️ <b>TW Đinh Mạnh Ninh</b>" if has_p4 else "⬜ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
+            b4 = "☑️ <b style='color: #D49A00;'>TW Đinh Mạnh Ninh</b>" if has_p4 else "⬜ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
 
             # Gắn data vào khung (Dùng Flexbox chia 2 bên trái/phải)
             html_content += f"""
