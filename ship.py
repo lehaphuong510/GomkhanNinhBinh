@@ -230,16 +230,16 @@ try:
             # Xử lý logic Tick box và In đậm (Có tick = đậm, không tick = mỏng)
             # Xử lý logic Tick box và In đậm, Tô màu
             has_p1 = "✅" in str(row.get(COLS_SAN_PHAM[0], ''))
-            b1 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>BD Trịnh Thăng Bình</b>" if has_p1 else "▫️ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
+            b1 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>BD Trịnh Thăng Bình</b>" if has_p1 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
             
             has_p2 = "✅" in str(row.get(COLS_SAN_PHAM[1], ''))
-            b2 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>TW Trịnh Thăng Bình</b>" if has_p2 else "▫️ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
+            b2 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>TW Trịnh Thăng Bình</b>" if has_p2 else "▢ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
             
             has_p3 = "✅" in str(row.get(COLS_SAN_PHAM[2], ''))
-            b3 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>BD Đinh Mạnh Ninh</b>" if has_p3 else "▫️ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
+            b3 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>BD Đinh Mạnh Ninh</b>" if has_p3 else "▢ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
             
             has_p4 = "✅" in str(row.get(COLS_SAN_PHAM[3], ''))
-            b4 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>TW Đinh Mạnh Ninh</b>" if has_p4 else "▫️ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
+            b4 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>TW Đinh Mạnh Ninh</b>" if has_p4 else "▢ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
 
             # Gắn data vào khung (Dùng Flexbox chia 2 bên trái/phải)
             html_content += f"""
