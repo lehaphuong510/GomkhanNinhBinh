@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import re
+import io
 from streamlit_gsheets import GSheetsConnection
 
 # ================= CẤU HÌNH CƠ BẢN =================
