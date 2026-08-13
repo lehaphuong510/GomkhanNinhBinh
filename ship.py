@@ -85,10 +85,18 @@ def load_data():
     df.columns = df.columns.str.strip()
     
     if 'SDT full' in df.columns:
-        # Gọt đuôi .0 (nếu có) và xóa khoảng trắng thừa
-        df['SDT full'] = df['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-        # Bơm lại số 0 đằng trước nếu lỡ bị Google Sheet gọt mất
-        df['SDT full'] = df['SDT full'].apply(lambda x: '0' + x if x.isdigit() and not x.startswith('0') else x)
+        def fix_sdt(x):
+            # 1. Ép về kiểu chữ, cắt đuôi .0 và xóa khoảng trắng thừa
+            s = str(x).replace('.0', '').strip()
+            # 2. Nếu là ô trống thì trả về ô trống, không xử lý thêm
+            if s.lower() == 'nan' or s.lower() == 'none' or s == '':
+                return ""
+            # 3. Nếu toàn là số và thiếu số 0 ở đầu -> Bơm số 0 vào
+            if s.isdigit() and not s.startswith('0'):
+                return '0' + s
+            return s
+            
+        df['SDT full'] = df['SDT full'].apply(fix_sdt)
         
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
