@@ -210,9 +210,13 @@ try:
 
     st.divider()
 
-    st.subheader("3. 📊 Xuất File Excel (Mẫu GHTK)")    
-    if st.button("Tạo File Excel GHTK cho danh sách trên"):
-        # 1. Tạo một DataFrame mới tinh để đóng gói theo đúng chuẩn ĐVVC
+    # ================= CẬP NHẬT LỰA CHỌN ĐVVC =================
+    st.subheader("3. 📊 Xuất File Excel ĐVVC")    
+    
+    # Cho phép user chọn ĐVVC
+    dvvc_choice = st.radio("🚛 Chọn form xuất Đơn vị vận chuyển:", ["GHTK - Giao Hàng Tiết Kiệm", "VTP - Viettel Post"], horizontal=True)
+
+    if st.button(f"Tạo File Excel cho {dvvc_choice.split(' - ')[0]}"):
         df_export = pd.DataFrame()
         
         # Hàm đếm số lượng: Quét 4 cột sản phẩm xem có bao nhiêu tick ✅
@@ -221,43 +225,71 @@ try:
             for p in COLS_SAN_PHAM:
                 if "✅" in str(row.get(p, '')):
                     count += 1
-            return count if count > 0 else 1 # Tránh ra 0 nếu data có lỗi
-            
-        # 2. Lắp ráp từng cột theo đúng thứ tự
-        df_export['Mã ĐH riêng'] = ""
-        df_export['Tên khách hàng'] = df_hien_thi.get(COL_TEN, '')
-        df_export['SĐT'] = df_hien_thi.get(COL_SDT, '')
-        df_export['Địa chỉ chi tiết'] = df_hien_thi.get(COL_DIA_CHI, '')
-        
-        df_export['Tên sản phẩm'] = df_hien_thi.get('Sản phẩm đăng ký thành công', '')
-        df_export['Số lượng'] = df_hien_thi.apply(dem_so_luong, axis=1)
-        df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
-        df_export['Giá trị hàng'] = df_hien_thi.get('Số tiền', '')
-        df_export['Tiền CoD'] = ""
-        df_export['Dịch vụ gia tăng'] = ""
-        df_export['Hình thức lấy hàng'] = ""
-        df_export['Phiên lấy hàng'] = df_hien_thi.get('Phiên lấy hàng', '')
-        df_export['Dịch vụ & Hình thức VC'] = ""
-        df_export['Trả ship'] = "Khách trả"
-        
+            return count if count > 0 else 1 
+
+        if "GHTK" in dvvc_choice:
+            # ==== LOGIC XUẤT CHO GHTK ====
+            prefix = "GHTK"
+            df_export['Mã ĐH riêng'] = ""
+            df_export['Tên khách hàng'] = df_hien_thi.get(COL_TEN, '')
+            df_export['SĐT'] = df_hien_thi.get(COL_SDT, '')
+            df_export['Địa chỉ chi tiết'] = df_hien_thi.get(COL_DIA_CHI, '')
+            df_export['Tên sản phẩm'] = df_hien_thi.get('Sản phẩm đăng ký thành công', '')
+            df_export['Số lượng'] = df_hien_thi.apply(dem_so_luong, axis=1)
+            df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
+            df_export['Giá trị hàng'] = df_hien_thi.get('Số tiền', '')
+            df_export['Tiền CoD'] = ""
+            df_export['Dịch vụ gia tăng'] = ""
+            df_export['Hình thức lấy hàng'] = ""
+            df_export['Phiên lấy hàng'] = df_hien_thi.get('Phiên lấy hàng', '')
+            df_export['Dịch vụ & Hình thức VC'] = ""
+            df_export['Trả ship'] = "Khách trả"
+
+        elif "VTP" in dvvc_choice:
+            # ==== LOGIC XUẤT CHO VIETTEL POST ====
+            prefix = "VTP"
+            # Cột STT chạy từ 1 đến hết danh sách hiển thị
+            df_export['STT'] = range(1, len(df_hien_thi) + 1)
+            df_export['Mã đơn hàng '] = ""
+            df_export['Tên người nhận (*)'] = df_hien_thi.get(COL_TEN, '')
+            df_export['Số ĐT người nhận (*)'] = df_hien_thi.get(COL_SDT, '')
+            df_export['Địa chỉ nhận (*)'] = df_hien_thi.get(COL_DIA_CHI, '')
+            df_export['Tên hàng hóa (*)'] = df_hien_thi.get('Sản phẩm đăng ký thành công', '')
+            df_export['Số lượng'] = df_hien_thi.apply(dem_so_luong, axis=1)
+            df_export['Trọng lượng (gram)  (*)'] = 100
+            df_export['Giá trị hàng (VND) (*)'] = df_hien_thi.get('Số tiền', '')
+            df_export['Tiền thu hộ COD (VND)'] = 0
+            df_export['Loại hàng hóa (*)'] = "Khăn"
+            df_export['Tính chất hàng hóa đặc biệt'] = ""
+            df_export['Dịch vụ  (*)'] = "PHS - Nội tỉnh tiết kiệm thỏa thuận"
+            df_export['Dịch vụ cộng thêm '] = ""
+            df_export['Thu tiền xem hàng'] = ""
+            df_export['Dài (cm)'] = 5
+            df_export['Rộng (cm)'] = 5
+            df_export['Cao (cm)'] = 1
+            df_export['Người trả cước'] = "Người nhận trả"
+            df_export['Yêu cầu khác'] = ""
+            df_export['Thời gian hẹn lấy'] = ""
+            df_export['Thời gian giao'] = ""
+
         # 3. Đóng gói thành file Excel (lưu vào bộ nhớ đệm)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df_export.to_excel(writer, index=False, sheet_name='Sheet1')
         excel_data = output.getvalue()
         
-        # TẠO TÊN FILE THÔNG MINH
+        # TẠO TÊN FILE THÔNG MINH (Dựa trên prefix của ĐVVC)
         if "Tất cả" in tinh_duoc_chon or len(tinh_duoc_chon) == 0:
-            ten_file = "GHTK_Tat_Ca.xlsx"
+            ten_file = f"{prefix}_Tat_Ca.xlsx"
         else:
             chuoi_tinh = "_".join(tinh_duoc_chon)
             if len(chuoi_tinh) > 40:
                 chuoi_tinh = "Nhieu_Tinh_Thanh"
-            ten_file = f"GHTK_{chuoi_tinh}.xlsx"
+            ten_file = f"{prefix}_{chuoi_tinh}.xlsx"
         
         # 4. Hiện nút Download file về máy
         st.download_button(
-            label="📥 TẢI FILE EXCEL (.xlsx)",
+            label=f"📥 TẢI FILE EXCEL {prefix} (.xlsx)",
             data=excel_data,
             file_name=ten_file,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
