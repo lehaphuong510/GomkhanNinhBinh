@@ -292,7 +292,7 @@ try:
             .info { 
                 font-size: 13px; /* Thu nhỏ chữ lại để vừa khung */
                 margin-bottom: 2px; 
-                line-height: 1.2; 
+                line-height: 1.5; 
             }
             .products {
                 font-size: 10px; /* Font sản phẩm nhỏ gọn */
