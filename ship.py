@@ -219,6 +219,10 @@ try:
     if st.button(f"Tạo File Excel cho {dvvc_choice.split(' - ')[0]}"):
         df_export = pd.DataFrame()
         
+        # 👇👇👇 CHÌA KHÓA FIX LỖI Ở ĐÂY 👇👇👇
+        # Ép reset lại số thứ tự dòng (index) để không bị lệch khi ráp cột
+        df_source = df_hien_thi.reset_index(drop=True)
+        
         # Hàm đếm số lượng: Quét 4 cột sản phẩm xem có bao nhiêu tick ✅
         def dem_so_luong(row):
             count = 0
@@ -231,33 +235,33 @@ try:
             # ==== LOGIC XUẤT CHO GHTK ====
             prefix = "GHTK"
             df_export['Mã ĐH riêng'] = ""
-            df_export['Tên khách hàng'] = df_hien_thi.get(COL_TEN, '')
-            df_export['SĐT'] = df_hien_thi.get(COL_SDT, '')
-            df_export['Địa chỉ chi tiết'] = df_hien_thi.get(COL_DIA_CHI, '')
-            df_export['Tên sản phẩm'] = df_hien_thi.get('Sản phẩm đăng ký thành công', '')
-            df_export['Số lượng'] = df_hien_thi.apply(dem_so_luong, axis=1)
+            df_export['Tên khách hàng'] = df_source.get(COL_TEN, '')
+            df_export['SĐT'] = df_source.get(COL_SDT, '')
+            df_export['Địa chỉ chi tiết'] = df_source.get(COL_DIA_CHI, '')
+            df_export['Tên sản phẩm'] = df_source.get('Sản phẩm đăng ký thành công', '')
+            df_export['Số lượng'] = df_source.apply(dem_so_luong, axis=1)
             df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
-            df_export['Giá trị hàng'] = df_hien_thi.get('Số tiền', '')
+            df_export['Giá trị hàng'] = df_source.get('Số tiền', '')
             df_export['Tiền CoD'] = ""
             df_export['Dịch vụ gia tăng'] = ""
             df_export['Hình thức lấy hàng'] = ""
-            df_export['Phiên lấy hàng'] = df_hien_thi.get('Phiên lấy hàng', '')
+            df_export['Phiên lấy hàng'] = df_source.get('Phiên lấy hàng', '')
             df_export['Dịch vụ & Hình thức VC'] = ""
             df_export['Trả ship'] = "Khách trả"
 
         elif "VTP" in dvvc_choice:
             # ==== LOGIC XUẤT CHO VIETTEL POST ====
             prefix = "VTP"
-            # Cột STT chạy từ 1 đến hết danh sách hiển thị
-            df_export['STT'] = range(1, len(df_hien_thi) + 1)
+            # Cột STT chạy từ 1 đến hết danh sách
+            df_export['STT'] = range(1, len(df_source) + 1)
             df_export['Mã đơn hàng '] = ""
-            df_export['Tên người nhận (*)'] = df_hien_thi.get(COL_TEN, '')
-            df_export['Số ĐT người nhận (*)'] = df_hien_thi.get(COL_SDT, '')
-            df_export['Địa chỉ nhận (*)'] = df_hien_thi.get(COL_DIA_CHI, '')
-            df_export['Tên hàng hóa (*)'] = df_hien_thi.get('Sản phẩm đăng ký thành công', '')
-            df_export['Số lượng'] = df_hien_thi.apply(dem_so_luong, axis=1)
+            df_export['Tên người nhận (*)'] = df_source.get(COL_TEN, '')
+            df_export['Số ĐT người nhận (*)'] = df_source.get(COL_SDT, '')
+            df_export['Địa chỉ nhận (*)'] = df_source.get(COL_DIA_CHI, '')
+            df_export['Tên hàng hóa (*)'] = df_source.get('Sản phẩm đăng ký thành công', '')
+            df_export['Số lượng'] = df_source.apply(dem_so_luong, axis=1)
             df_export['Trọng lượng (gram)  (*)'] = 100
-            df_export['Giá trị hàng (VND) (*)'] = df_hien_thi.get('Số tiền', '')
+            df_export['Giá trị hàng (VND) (*)'] = df_source.get('Số tiền', '')
             df_export['Tiền thu hộ COD (VND)'] = 0
             df_export['Loại hàng hóa (*)'] = "Khăn"
             df_export['Tính chất hàng hóa đặc biệt'] = ""
