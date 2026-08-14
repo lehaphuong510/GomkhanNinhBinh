@@ -4,7 +4,7 @@ import re
 import io
 from streamlit_gsheets import GSheetsConnection
 
-# ================= CẤU HÌNH CƠ BẢN =================
+# ================= CẤU HÌNH CƠ BẢN =================
 st.set_page_config(page_title="App Nội Bộ - Lọc Tỉnh Thành", layout="wide")
 st.title("📦 HỆ THỐNG LỌC ĐỊA CHỈ SHIP - NỘI BỘ")
 
@@ -12,9 +12,7 @@ st.title("📦 HỆ THỐNG LỌC ĐỊA CHỈ SHIP - NỘI BỘ")
 SHEET_ID = '1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU' 
 SHEET_NAME = 'Data%20App'
 
-
 # ================= ĐIỀN TÊN CỘT =================
-# Mấy cột này t bốc từ code cũ qua, đảm bảo đúng 100%:
 COL_TRANG_THAI = 'Trạng thái chuyển khoản'
 COLS_SAN_PHAM = [
     'Bandana TTB', 
@@ -22,13 +20,11 @@ COLS_SAN_PHAM = [
     'Bandana ĐMN', 
     'Twilly ĐMN'
 ]
-COL_NOI_NHAN = 'Nơi nhận' # M check lại tên cột này trên Sheet cho chuẩn nha
+COL_NOI_NHAN = 'Nơi nhận' 
 
-# 👇👇👇 [CHECK LẠI] M ngó vào Sheet xem 3 tên cột này viết chính xác là gì nha:
 COL_TEN = 'Nickname' 
 COL_SDT = 'SDT full' 
-COL_DIA_CHI = 'Địa chỉ' # Cột mà khách thực sự điền số nhà, đường, quận...
-# 👆👆👆 
+COL_DIA_CHI = 'Địa chỉ' 
 
 # ================= TỪ ĐIỂN 63 TỈNH THÀNH =================
 DICT_TINH = {
@@ -64,6 +60,7 @@ DICT_TINH = {
     "Tiền Giang": ["tiền giang", "mỹ tho"], "Trà Vinh": ["trà vinh"], "Tuyên Quang": ["tuyên quang"], 
     "Vĩnh Long": ["vĩnh long"], "Vĩnh Phúc": ["vĩnh phúc"], "Yên Bái": ["yên bái"]
 }
+
 # ================= TỪ ĐIỂN 3 MIỀN =================
 DICT_MIEN = {
     "Miền Bắc": ["Hà Nội", "Hải Phòng", "Quảng Ninh", "Vĩnh Phúc", "Bắc Ninh", "Hải Dương", "Hưng Yên", "Hà Nam", "Nam Định", "Thái Bình", "Ninh Bình", "Hà Giang", "Cao Bằng", "Bắc Kạn", "Tuyên Quang", "Thái Nguyên", "Lạng Sơn", "Bắc Giang", "Phú Thọ", "Điện Biên", "Lai Châu", "Sơn La", "Hòa Bình", "Yên Bái", "Lào Cai"],
@@ -83,8 +80,16 @@ def quet_tinh_thanh(dia_chi):
                 return tinh
     return "Tỉnh khác (Cần check tay)"
 
+# Định nghĩa hàm xác định miền cho data gốc
+def xac_dinh_mien(tinh):
+    for mien, danh_sach in DICT_MIEN.items():
+        if tinh in danh_sach:
+            return mien
+    return "Khác"
+
 # ================= XỬ LÝ DỮ LIỆU =================
-url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
+url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit?usp=sharing"
+
 @st.cache_data(ttl=60)
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
@@ -93,12 +98,9 @@ def load_data():
     
     if 'SDT full' in df.columns:
         def fix_sdt(x):
-            # 1. Ép về kiểu chữ, cắt đuôi .0 và xóa khoảng trắng thừa
             s = str(x).replace('.0', '').strip()
-            # 2. Nếu là ô trống thì trả về ô trống, không xử lý thêm
             if s.lower() == 'nan' or s.lower() == 'none' or s == '':
                 return ""
-            # 3. Nếu toàn là số và thiếu số 0 ở đầu -> Bơm số 0 vào
             if s.isdigit() and not s.startswith('0'):
                 return '0' + s
             return s
@@ -116,101 +118,77 @@ try:
     # 1. Lọc bạo lực: Chỉ lấy những đơn có chữ "CHỐT ĐƠN"
     df_chot_don = df_raw[df_raw[COL_TRANG_THAI].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)].copy()
     
-    
-    # 👇👇 CHÈN THÊM DÒNG NÀY ĐỂ LỌC PHỄU 2 (CHỈ LẤY SHIP) 👇👇
+    # Lọc phễu 2 (Chỉ lấy SHIP)
     if COL_NOI_NHAN in df_chot_don.columns:
-        # Lấy những dòng có chứa chữ "Ship"
         df_chot_don = df_chot_don[df_chot_don[COL_NOI_NHAN].astype(str).str.upper().str.contains('SHIP', na=False)]
-    # 👆👆 ------------------------------------------------ 👆👆
-
-       
+        
     # 2. Tạo thêm cột Tỉnh Thành bằng hàm quét Regex
     if COL_DIA_CHI in df_chot_don.columns:
         df_chot_don['Tỉnh Thành'] = df_chot_don[COL_DIA_CHI].apply(quet_tinh_thanh)
     else:
         st.error(f"❌ Không tìm thấy cột '{COL_DIA_CHI}' trong Sheet! M nhớ check lại tên cột nha.")
         st.stop()
-    
-    
+        
+    # Gắn thêm cột "Khu vực" ngầm vào data để làm gốc lọc
+    if 'Tỉnh Thành' in df_chot_don.columns:
+        df_chot_don['Khu vực'] = df_chot_don['Tỉnh Thành'].apply(xac_dinh_mien)
+
     # ================= GIAO DIỆN HIỂN THỊ =================
     st.subheader("1. 📊 Bảng tổng hợp số lượng theo tỉnh")
     
-    # 1. Đếm Số lượng đơn tổng theo từng tỉnh trước
-    df_tong_hop = df_chot_don['Tỉnh Thành'].value_counts().reset_index()
+    # BỘ LỌC 1: LỌC MIỀN (Áp dụng cho toàn bộ app)
+    mien_duoc_chon = st.multiselect(
+        "📍 Lọc dữ liệu theo Khu vực (Áp dụng cho cả bảng thống kê và danh sách chi tiết):",
+        ["Tất cả", "Miền Bắc", "Miền Trung", "Miền Nam", "Khác"],
+        default=["Tất cả"]
+    )
+    
+    # Cắt data theo miền đã chọn (Tạo thành 1 bộ data mới tên là df_loc_mien)
+    if "Tất cả" in mien_duoc_chon or len(mien_duoc_chon) == 0:
+        df_loc_mien = df_chot_don.copy()
+    else:
+        df_loc_mien = df_chot_don[df_chot_don['Khu vực'].isin(mien_duoc_chon)].copy()
+
+    # --- BẢNG 1: XỬ LÝ DỮ LIỆU THỐNG KÊ (Dựa trên df_loc_mien) ---
+    df_tong_hop = df_loc_mien['Tỉnh Thành'].value_counts().reset_index()
     df_tong_hop.columns = ['Tỉnh Thành', 'Số lượng đơn']
     
-    # 2. Quét đếm từng món sản phẩm và ghép cột vào bảng
     for p in COLS_SAN_PHAM:
-        if p in df_chot_don.columns:
-            # Rà xem ở cột sản phẩm này, dòng nào có tick ✅
-            df_mon_nay = df_chot_don[df_chot_don[p].astype(str).str.contains('✅', na=False)]
-            
-            # Đếm số lượng tick ✅ đó theo từng tỉnh
+        if p in df_loc_mien.columns:
+            df_mon_nay = df_loc_mien[df_loc_mien[p].astype(str).str.contains('✅', na=False)]
             dem_mon = df_mon_nay['Tỉnh Thành'].value_counts().reset_index()
             dem_mon.columns = ['Tỉnh Thành', p]
-            
-            # Gắn cái cột mới đếm được vào bảng tổng hợp chung
             df_tong_hop = pd.merge(df_tong_hop, dem_mon, on='Tỉnh Thành', how='left')
             
-    # 3. Dọn dẹp số liệu cho đẹp (Trám số 0 vào những ô trống, ép kiểu thành số nguyên)
     df_tong_hop = df_tong_hop.fillna(0)
     for col in df_tong_hop.columns:
         if col != 'Tỉnh Thành':
             df_tong_hop[col] = df_tong_hop[col].astype(int)
-
-    # 👇👇 PHẦN MỚI THÊM: MAP 3 MIỀN VÀ SẮP XẾP LẠI 👇👇
-    def xac_dinh_mien(tinh):
-        for mien, danh_sach in DICT_MIEN.items():
-            if tinh in danh_sach:
-                return mien
-        return "Khác" # Dành cho những ca chưa rõ tỉnh
-
-    # Tạo cột Khu vực mới
-    df_tong_hop['Khu vực'] = df_tong_hop['Tỉnh Thành'].apply(xac_dinh_mien)
-
-    # Cầm cổ cái cột "Khu vực" lôi lên đứng đầu tiên cho dễ nhìn
-    danh_sach_cot = df_tong_hop.columns.tolist()
-    danh_sach_cot.insert(0, danh_sach_cot.pop(danh_sach_cot.index('Khu vực')))
-    df_tong_hop = df_tong_hop[danh_sach_cot]
-
-    # Nhóm thứ tự ưu tiên: Miền Bắc -> Trung -> Nam, sau đó xếp theo bảng chữ cái của Tỉnh
-    thu_tu_mien = pd.CategoricalDtype(categories=["Miền Bắc", "Miền Trung", "Miền Nam", "Khác"], ordered=True)
-    df_tong_hop['Khu vực'] = df_tong_hop['Khu vực'].astype(thu_tu_mien)
-    df_tong_hop = df_tong_hop.sort_values(['Khu vực', 'Tỉnh Thành']).reset_index(drop=True)
-    # 👆👆 ---------------------------------------------- 👆👆
             
-    # In cái bảng ra màn hình
     st.dataframe(df_tong_hop, use_container_width=True)
     
     st.divider()
     
     st.subheader("2. 🔍 Trích xuất danh sách gửi Ship")
-    danh_sach_tinh = sorted(df_chot_don['Tỉnh Thành'].unique().tolist())
     
-    # Đổi thành multiselect cho phép chọn nhiều tỉnh cùng lúc
+    # BỘ LỌC 2: LỌC TỈNH (Danh sách tỉnh sẽ tự co lại theo miền đã chọn ở trên)
+    danh_sach_tinh = sorted(df_loc_mien['Tỉnh Thành'].unique().tolist())
+    
     tinh_duoc_chon = st.multiselect(
-        "👉 Chọn Tỉnh/Thành phố muốn xem (Có thể chọn nhiều):", 
+        "👉 Chọn chi tiết Tỉnh/Thành phố muốn xem (Có thể chọn nhiều):", 
         ["Tất cả"] + danh_sach_tinh, 
         default=["Tất cả"]
     )
     
-    # Xử lý logic lọc nhiều tỉnh
+    # --- BẢNG 2: XỬ LÝ DỮ LIỆU CHI TIẾT ---
     if "Tất cả" in tinh_duoc_chon or len(tinh_duoc_chon) == 0:
-        df_hien_thi = df_chot_don
+        df_hien_thi = df_loc_mien
     else:
-        # Lọc ra những đơn có tỉnh nằm trong danh sách đã chọn
-        df_hien_thi = df_chot_don[df_chot_don['Tỉnh Thành'].isin(tinh_duoc_chon)]
+        df_hien_thi = df_loc_mien[df_loc_mien['Tỉnh Thành'].isin(tinh_duoc_chon)]
         
-    # Gom các cột cần thiết
     cot_can_xem = [COL_TEN, COL_SDT, COL_DIA_CHI] + COLS_SAN_PHAM
-    
-    # Kiểm tra xem các cột có tồn tại không trước khi hiển thị
     cot_thuc_te = [col for col in cot_can_xem if col in df_hien_thi.columns]
-    
-    # Ép kiểu SĐT về chuỗi để không bị hiện số phẩy
-    if COL_SDT in df_hien_thi.columns:
-        df_hien_thi[COL_SDT] = df_hien_thi[COL_SDT].astype(str).str.replace(r'\.0$', '', regex=True)
-    
+        
     st.dataframe(df_hien_thi[cot_thuc_te], use_container_width=True, hide_index=True)
 
     st.divider()
@@ -228,13 +206,12 @@ try:
                     count += 1
             return count if count > 0 else 1 # Tránh ra 0 nếu data có lỗi
             
-        # 2. Lắp ráp từng cột theo đúng thứ tự m dặn
+        # 2. Lắp ráp từng cột theo đúng thứ tự
         df_export['Mã ĐH riêng'] = ""
         df_export['Tên khách hàng'] = df_hien_thi.get(COL_TEN, '')
         df_export['SĐT'] = df_hien_thi.get(COL_SDT, '')
         df_export['Địa chỉ chi tiết'] = df_hien_thi.get(COL_DIA_CHI, '')
         
-        # Mấy cột mới này nếu trên Sheet m chưa có thì nó sẽ tự để trống không báo lỗi
         df_export['Tên sản phẩm'] = df_hien_thi.get('Sản phẩm đăng ký thành công', '')
         df_export['Số lượng'] = df_hien_thi.apply(dem_so_luong, axis=1)
         df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
@@ -256,9 +233,7 @@ try:
         if "Tất cả" in tinh_duoc_chon or len(tinh_duoc_chon) == 0:
             ten_file = "GHTK_Tat_Ca.xlsx"
         else:
-            # Nối tên các tỉnh m đã chọn lại (ví dụ: Hồ Chí Minh_Hà Nội)
             chuoi_tinh = "_".join(tinh_duoc_chon)
-            # Nếu tên dài quá (do chọn nhiều tỉnh) thì gộp chung cho an toàn
             if len(chuoi_tinh) > 40:
                 chuoi_tinh = "Nhieu_Tinh_Thanh"
             ten_file = f"GHTK_{chuoi_tinh}.xlsx"
@@ -329,14 +304,12 @@ try:
         """
 
         # Chạy vòng lặp quét từng đơn để tạo Label
-        # Chạy vòng lặp quét từng đơn để tạo Label
         for index, row in df_hien_thi.iterrows():
             ten = row.get(COL_TEN, '')
             sdt = str(row.get(COL_SDT, '')).replace('.0', '')
             diachi = row.get(COL_DIA_CHI, '')
             mvd = row.get(COL_MVD, '')
             
-            # Xử lý logic Tick box và In đậm (Có tick = đậm, không tick = mỏng)
             # Xử lý logic Tick box và In đậm, Tô màu
             has_p1 = "✅" in str(row.get(COLS_SAN_PHAM[0], ''))
             b1 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>BD Trịnh Thăng Bình</b>" if has_p1 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
@@ -373,15 +346,13 @@ try:
 
         html_content += "</div></body></html>"
 
-        # Nút tải file về máy
+        # Nút tải file HTML
         st.download_button(
             label="📥 TẢI FILE IN (.html)",
             data=html_content,
             file_name="Label_Giao_Hang.html",
             mime="text/html"
         )
-
-        
 
 except Exception as e:
     st.error(f"Lỗi rồi m ơi: {e}")
