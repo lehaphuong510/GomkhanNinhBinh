@@ -182,10 +182,8 @@ try:
         return [''] * len(row)
         
     # 4. Hiển thị bảng đã được bọc "style"
-    st.dataframe(df_tong_hop.style.apply(to_mau_dong_tong, axis=1), use_container_width=True)
-            
-    st.dataframe(df_tong_hop, use_container_width=True)
-    
+    st.dataframe(df_tong_hop.style.apply(to_mau_dong_tong, axis=1), use_container_width=True)          
+      
     st.divider()
     
     st.subheader("2. 🔍 Trích xuất danh sách gửi Ship")
