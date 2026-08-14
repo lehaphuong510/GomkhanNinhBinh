@@ -64,6 +64,12 @@ DICT_TINH = {
     "Tiền Giang": ["tiền giang", "mỹ tho"], "Trà Vinh": ["trà vinh"], "Tuyên Quang": ["tuyên quang"], 
     "Vĩnh Long": ["vĩnh long"], "Vĩnh Phúc": ["vĩnh phúc"], "Yên Bái": ["yên bái"]
 }
+# ================= TỪ ĐIỂN 3 MIỀN =================
+DICT_MIEN = {
+    "Miền Bắc": ["Hà Nội", "Hải Phòng", "Quảng Ninh", "Vĩnh Phúc", "Bắc Ninh", "Hải Dương", "Hưng Yên", "Hà Nam", "Nam Định", "Thái Bình", "Ninh Bình", "Hà Giang", "Cao Bằng", "Bắc Kạn", "Tuyên Quang", "Thái Nguyên", "Lạng Sơn", "Bắc Giang", "Phú Thọ", "Điện Biên", "Lai Châu", "Sơn La", "Hòa Bình", "Yên Bái", "Lào Cai"],
+    "Miền Trung": ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
+    "Miền Nam": ["Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Bà Rịa - Vũng Tàu", "Tây Ninh", "Bình Phước", "Long An", "Tiền Giang", "Bến Tre", "Vĩnh Long", "Trà Vinh", "Đồng Tháp", "Hậu Giang", "Sóc Trăng", "An Giang", "Kiên Giang", "Bạc Liêu", "Cà Mau", "Cần Thơ"]
+}
 
 # Hàm bóc tách địa chỉ
 def quet_tinh_thanh(dia_chi):
@@ -151,6 +157,27 @@ try:
     for col in df_tong_hop.columns:
         if col != 'Tỉnh Thành':
             df_tong_hop[col] = df_tong_hop[col].astype(int)
+
+    # 👇👇 PHẦN MỚI THÊM: MAP 3 MIỀN VÀ SẮP XẾP LẠI 👇👇
+    def xac_dinh_mien(tinh):
+        for mien, danh_sach in DICT_MIEN.items():
+            if tinh in danh_sach:
+                return mien
+        return "Khác" # Dành cho những ca chưa rõ tỉnh
+
+    # Tạo cột Khu vực mới
+    df_tong_hop['Khu vực'] = df_tong_hop['Tỉnh Thành'].apply(xac_dinh_mien)
+
+    # Cầm cổ cái cột "Khu vực" lôi lên đứng đầu tiên cho dễ nhìn
+    danh_sach_cot = df_tong_hop.columns.tolist()
+    danh_sach_cot.insert(0, danh_sach_cot.pop(danh_sach_cot.index('Khu vực')))
+    df_tong_hop = df_tong_hop[danh_sach_cot]
+
+    # Nhóm thứ tự ưu tiên: Miền Bắc -> Trung -> Nam, sau đó xếp theo bảng chữ cái của Tỉnh
+    thu_tu_mien = pd.CategoricalDtype(categories=["Miền Bắc", "Miền Trung", "Miền Nam", "Khác"], ordered=True)
+    df_tong_hop['Khu vực'] = df_tong_hop['Khu vực'].astype(thu_tu_mien)
+    df_tong_hop = df_tong_hop.sort_values(['Khu vực', 'Tỉnh Thành']).reset_index(drop=True)
+    # 👆👆 ---------------------------------------------- 👆👆
             
     # In cái bảng ra màn hình
     st.dataframe(df_tong_hop, use_container_width=True)
