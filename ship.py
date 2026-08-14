@@ -290,12 +290,12 @@ try:
                 margin-bottom: 4px; 
             }
             .info { 
-                font-size: 12px; /* Thu nhỏ chữ lại để vừa khung */
+                font-size: 13px; /* Thu nhỏ chữ lại để vừa khung */
                 margin-bottom: 2px; 
                 line-height: 1.2; 
             }
             .products {
-                font-size: 11px; /* Font sản phẩm nhỏ gọn */
+                font-size: 10px; /* Font sản phẩm nhỏ gọn */
             }
         </style></head><body>
         <div class="grid-container">
