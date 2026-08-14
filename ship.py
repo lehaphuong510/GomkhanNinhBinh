@@ -166,14 +166,23 @@ try:
             df_tong_hop[col] = df_tong_hop[col].astype(int)
 
     if not df_tong_hop.empty:
-        # Lập một từ điển để chứa số liệu tổng
+        # 1. Tính tổng
         tong_dict = {'Tỉnh Thành': '🌟 TỔNG CỘNG'}
         for col in df_tong_hop.columns:
             if col != 'Tỉnh Thành':
-                tong_dict[col] = df_tong_hop[col].sum() # Cộng dồn từng cột
+                tong_dict[col] = df_tong_hop[col].sum()
         
-        # Gắn dòng tổng cộng vào đít bảng
-        df_tong_hop = pd.concat([df_tong_hop, pd.DataFrame([tong_dict])], ignore_index=True)
+        # 2. Đảo vị trí: Để pd.DataFrame([tong_dict]) lên trước để nó nằm dòng 0
+        df_tong_hop = pd.concat([pd.DataFrame([tong_dict]), df_tong_hop], ignore_index=True)
+
+    # 3. Hàm tô màu: Nếu là dòng TỔNG CỘNG thì tô nền vàng, chữ đỏ đậm
+    def to_mau_dong_tong(row):
+        if row['Tỉnh Thành'] == '🌟 TỔNG CỘNG':
+            return ['background-color: #ffeb3b; color: #d32f2f; font-weight: bold;'] * len(row)
+        return [''] * len(row)
+        
+    # 4. Hiển thị bảng đã được bọc "style"
+    st.dataframe(df_tong_hop.style.apply(to_mau_dong_tong, axis=1), use_container_width=True)
             
     st.dataframe(df_tong_hop, use_container_width=True)
     
