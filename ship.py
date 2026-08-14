@@ -164,6 +164,16 @@ try:
     for col in df_tong_hop.columns:
         if col != 'Tỉnh Thành':
             df_tong_hop[col] = df_tong_hop[col].astype(int)
+
+    if not df_tong_hop.empty:
+        # Lập một từ điển để chứa số liệu tổng
+        tong_dict = {'Tỉnh Thành': '🌟 TỔNG CỘNG'}
+        for col in df_tong_hop.columns:
+            if col != 'Tỉnh Thành':
+                tong_dict[col] = df_tong_hop[col].sum() # Cộng dồn từng cột
+        
+        # Gắn dòng tổng cộng vào đít bảng
+        df_tong_hop = pd.concat([df_tong_hop, pd.DataFrame([tong_dict])], ignore_index=True)
             
     st.dataframe(df_tong_hop, use_container_width=True)
     
