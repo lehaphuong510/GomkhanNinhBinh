@@ -256,23 +256,47 @@ try:
         html_content = """
         <html><head><meta charset="utf-8">
         <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
+            @page { 
+                size: 100mm 150mm; /* Khổ A6 chuẩn */
+                margin: 0; 
+            }
+            body { 
+                font-family: Arial, sans-serif; 
+                margin: 0; 
+                padding: 2mm; 
+                background-color: #f4f4f9; 
+            }
             .grid-container { 
-                display: grid; 
-                grid-template-columns: repeat(2, 1fr); /* Chia 2 cột trên giấy A4 */
-                gap: 15px; 
+                display: flex; 
+                flex-direction: column; /* Xếp dọc từ trên xuống */
+                gap: 2mm; /* Khoảng cách giữa 3 tem */
             }
             .label-box { 
-                border: 2px dashed #000; /* Viền đứt nét để dễ căn cắt */
-                padding: 15px; 
-                border-radius: 8px; 
+                width: 96mm; 
+                height: 47mm; /* 47x3 = 141mm, vừa khít 150mm A6 */
+                background: #fff; 
+                border: 1px dashed #000; 
+                padding: 5px; 
+                border-radius: 4px; 
                 box-sizing: border-box; 
-                page-break-inside: avoid; /* Chống cắt nửa cái label khi sang trang mới */
+                page-break-inside: avoid; /* Chống cắt nửa tem khi sang trang */
             }
-            .title { font-weight: bold; font-size: 18px; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 5px;}
-            .info { font-size: 15px; margin-bottom: 5px; line-height: 1.4; }
-            .products { margin-top: 10px; font-size: 14px; font-weight: bold;}
-            .prod-item { display: inline-block; width: 48%; margin-bottom: 4px; } /* Chia 2 cột cho sp */
+            .title { 
+                font-size: 14px; 
+                font-weight: bold; 
+                color: #333; 
+                border-bottom: 1px solid #ccc; 
+                padding-bottom: 2px; 
+                margin-bottom: 4px; 
+            }
+            .info { 
+                font-size: 12px; /* Thu nhỏ chữ lại để vừa khung */
+                margin-bottom: 2px; 
+                line-height: 1.2; 
+            }
+            .products {
+                font-size: 11px; /* Font sản phẩm nhỏ gọn */
+            }
         </style></head><body>
         <div class="grid-container">
         """
