@@ -112,7 +112,7 @@ try:
     if COL_NOI_NHAN in df_chot_don.columns:
         df_chot_don = df_chot_don[df_chot_don[COL_NOI_NHAN].astype(str).str.upper().str.contains('SHIP', na=False)]
         
-    # 2. Ưu tiên lấy dữ liệu đã Confirm (Checked)
+    # 2. ƯU TIÊN LẤY DỮ LIỆU ĐÃ CONFIRM (Đè Checked lên gốc)
     if 'Checked SDT' in df_chot_don.columns:
         df_chot_don['Checked SDT'] = df_chot_don['Checked SDT'].astype(str).str.replace("'", "").str.strip()
         df_chot_don['SDT full'] = df_chot_don['Checked SDT'].replace(['', 'nan', 'None'], pd.NA).fillna(df_chot_don['SDT full'])
@@ -228,8 +228,8 @@ try:
     df_grouped['Tổng SL'] = df_grouped.apply(lambda r: sum([r[p] for p in COLS_SAN_PHAM]), axis=1)
 
     # ================= 3. XUẤT EXCEL GỘP ĐƠN =================
-    st.subheader("3. 📊 Xuất File Excel ĐVVC (Tự động Gộp SĐT)")    
-    dvvc_choice = st.radio("🚛 Chọn form xuất Đơn vị vận chuyển:", ["GHTK - Giao Hàng Tiết Kiệm", "VTP - Viettel Post"], horizontal=True)
+    st.subheader("3. 📊 Xuất File Excel ĐVVC & Đóng Gói (Tự động Gộp SĐT)")    
+    dvvc_choice = st.radio("🚛 Chọn form xuất Excel:", ["GHTK - Giao Hàng Tiết Kiệm", "VTP - Viettel Post", "Bao - File Đóng Gói"], horizontal=True)
 
     if st.button(f"Tạo File Excel cho {dvvc_choice.split(' - ')[0]}"):
         df_export = pd.DataFrame()
@@ -239,10 +239,10 @@ try:
             df_export['Tên khách hàng'] = df_grouped.get(COL_TEN, '')
             df_export['SĐT'] = df_grouped.get(COL_SDT, '')
             df_export['Địa chỉ chi tiết'] = df_grouped.get(COL_DIA_CHI, '')
-            df_export['Tên sản phẩm'] = df_grouped['Tên SP Gộp']
+            df_export['Tên sản phẩm'] = "Khăn"
             df_export['Số lượng'] = df_grouped['Tổng SL']
             df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
-            df_export['Giá trị hàng'] = df_grouped['Số tiền']
+            df_export['Giá trị hàng'] = 0
             df_export['Tiền CoD'] = 0
             df_export['Dịch vụ gia tăng'] = ""
             df_export['Hình thức lấy hàng'] = ""
@@ -257,10 +257,10 @@ try:
             df_export['Tên người nhận (*)'] = df_grouped.get(COL_TEN, '')
             df_export['Số ĐT người nhận (*)'] = df_grouped.get(COL_SDT, '')
             df_export['Địa chỉ nhận (*)'] = df_grouped.get(COL_DIA_CHI, '')
-            df_export['Tên hàng hóa (*)'] = df_grouped['Tên SP Gộp']
+            df_export['Tên hàng hóa (*)'] = "Khăn"
             df_export['Số lượng'] = df_grouped['Tổng SL']
             df_export['Trọng lượng (gram)  (*)'] = 100
-            df_export['Giá trị hàng (VND) (*)'] = df_grouped['Số tiền']
+            df_export['Giá trị hàng (VND) (*)'] = 0
             df_export['Tiền thu hộ COD (VND)'] = 0
             df_export['Loại hàng hóa (*)'] = "Khăn"
             df_export['Tính chất hàng hóa đặc biệt'] = ""
@@ -275,6 +275,19 @@ try:
             df_export['Thời gian hẹn lấy'] = ""
             df_export['Thời gian giao'] = ""
 
+        elif "Bao" in dvvc_choice:
+            prefix = "Bao"
+            df_export['Tên'] = df_grouped.get(COL_TEN, '')
+            df_export['SDT'] = df_grouped.get(COL_SDT, '')
+            df_export['Địa chỉ'] = df_grouped.get(COL_DIA_CHI, '')
+            for p in COLS_SAN_PHAM:
+                df_export[p] = df_grouped[p]
+
+        # Bảo vệ số 0 của các cột SĐT trong mọi form
+        for col_name in ['SĐT', 'Số ĐT người nhận (*)', 'SDT']:
+            if col_name in df_export.columns:
+                df_export[col_name] = df_export[col_name].apply(lambda x: f"'{x}" if str(x).strip() != "" else "")
+
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df_export.to_excel(writer, index=False, sheet_name='Sheet1')
@@ -286,9 +299,9 @@ try:
             chuoi_tinh = "_".join(tinh_duoc_chon)
             ten_file = f"{prefix}_{chuoi_tinh if len(chuoi_tinh) <= 40 else 'Nhieu_Tinh_Thanh'}.xlsx"
         
-        st.success(f"Đã gộp thành công {len(df_hien_thi)} đơn gốc thành {len(df_grouped)} đơn Ship!")
+        st.success(f"Đã xuất thành công {len(df_hien_thi)} đơn gốc thành {len(df_grouped)} dòng (đã gộp)!")
         st.download_button(
-            label=f"📥 TẢI FILE EXCEL {prefix} ĐÃ GỘP ĐƠN (.xlsx)",
+            label=f"📥 TẢI FILE EXCEL {prefix} (.xlsx)",
             data=excel_data,
             file_name=ten_file,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
