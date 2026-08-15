@@ -242,18 +242,25 @@ with tab1:
         final_bank, final_stk, final_chu = "", "", ""
         stk_goc = str(row_data.get('STK', '')).replace('nan','').replace("'", "") # Gọt bỏ nháy đơn
         
+        # Bắt trạng thái Đã hoàn tiền
+        da_hoan_val = str(row_data.get('Đã hoàn', '')).strip().upper()
+        is_refunded = True if da_hoan_val in ['TRUE', '1', '1.0'] else False
+        
         if refund_amount > 0:
             st.markdown("<div class='section-title'>💸 THÔNG TIN HOÀN TIỀN</div>", unsafe_allow_html=True)
             st.info(f"🎁 Do giá Bandana giảm, bạn được hoàn lại số tiền là: **{refund_amount:,.0f} VNĐ**.")
             
-            if not is_locked:
+            if is_refunded:
+                st.success("✅ Tụi mình đã hoàn tiền thành công cho bạn rồi nha! Bạn kiểm tra tài khoản giúp tụi mình nhé.")
+                st.markdown(f"<div class='info-box'><b>Ngân hàng:</b> {str(row_data.get('Ngân hàng', '')).replace('nan','')}<br><b>STK:</b> {stk_goc}<br><b>Chủ TK:</b> {str(row_data.get('Chủ TK', '')).replace('nan','')}</div>", unsafe_allow_html=True)
+            elif not is_locked:
                 st.write("Vui lòng điền thông tin để tụi mình chuyển khoản nhé:")
                 col_b1, col_b2 = st.columns(2)
                 final_bank = col_b1.text_input("Ngân hàng nhận tiền:", value=str(row_data.get('Ngân hàng', '')).replace('nan',''))
                 final_stk = col_b2.text_input("Số tài khoản:", value=stk_goc)
                 final_chu = st.text_input("Tên chủ tài khoản:", value=str(row_data.get('Chủ TK', '')).replace('nan',''))
             else:
-                st.markdown(f"<div class='info-box'><b>Ngân hàng:</b> {row_data.get('Ngân hàng', '')}<br><b>STK:</b> {stk_goc}<br><b>Chủ TK:</b> {row_data.get('Chủ TK', '')}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-box'><b>Ngân hàng:</b> {str(row_data.get('Ngân hàng', '')).replace('nan','')}<br><b>STK:</b> {stk_goc}<br><b>Chủ TK:</b> {str(row_data.get('Chủ TK', '')).replace('nan','')}</div>", unsafe_allow_html=True)
                 
         # 4. LƯU Ý
         st.markdown("<div class='section-title'>📝 LƯU Ý THÊM</div>", unsafe_allow_html=True)
