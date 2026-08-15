@@ -268,7 +268,7 @@ with tab1:
                                 df_form.at[idx, 'Lưu ý'] = final_note
                                 df_form.at[idx, 'Trạng thái xác nhận'] = "Đã xác nhận"
                                 
-                            conn.update(worksheet="Câu trả lời biểu mẫu 1", data=df_form)
+                            conn.update(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1", data=df_form)
                             
                             st.cache_data.clear() 
                             st.success("✅ ĐÃ GHI NHẬN LÊN HỆ THỐNG! Cảm ơn bạn rất nhiều 💖")
@@ -379,7 +379,7 @@ with tab2:
                         new_val = edited_df.iloc[i]['Đã hoàn']
                         df_form.at[origin_idx, 'Đã hoàn'] = "TRUE" if new_val else "FALSE"
                         
-                    conn.update(worksheet="Câu trả lời biểu mẫu 1", data=df_form)
+                    conn.update(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1", data=df_form)
                     st.cache_data.clear()
                     st.success("✅ Đã lưu trạng thái hoàn tiền thành công!")
             
