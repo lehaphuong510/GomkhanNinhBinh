@@ -21,10 +21,10 @@ st.markdown("""
     <style>
     .stApp { background-color: #FFFFFF; color: #333333; }
     h1, h2, h3, h4, .stTabs [data-baseweb="tab"] p { color: #0B192C !important; font-weight: bold; }
-    .btn-main>button { background-color: #F4C430; color: #0B192C; font-weight: bold; border-radius: 8px; border: none; width: 100%; }
-    .btn-main>button:hover { background-color: #0B192C; color: #FFFFFF; border: none; }
-    .btn-refresh>button { background-color: #E0E6ED; color: #333333; font-weight: bold; border-radius: 8px; border: none; }
-    .btn-refresh>button:hover { background-color: #CBD5E1; color: #000; border: none; }
+    
+    /* CHỈ đổi màu những nút được đánh dấu là type="primary" */
+    button[kind="primary"] { background-color: #F4C430 !important; color: #0B192C !important; font-weight: bold !important; border: none; width: 100%; border-radius: 8px;}
+    button[kind="primary"]:hover { background-color: #0B192C !important; color: #FFFFFF !important; border: none; }
     
     .stTextInput>div>div>input, .stTextArea>div>div>textarea { background-color: #F8F9FA; color: #333333; border: 1px solid #0B192C; border-radius: 5px; }
     .stTabs [aria-selected="true"] { border-bottom-color: #0B192C !important; }
@@ -39,7 +39,6 @@ st.markdown("""
     .custom-table td:first-child { text-align: left; }
     .custom-tick { font-size: 20px; font-weight: 900; background: -webkit-linear-gradient(45deg, #0B192C, #F4C430); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     
-    /* Đổi màu Filter Tags của Streamlit sang xanh Navy */
     .stMultiSelect [data-baseweb="tag"] { background-color: #0B192C !important; color: white !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -53,11 +52,9 @@ else:
 # Nút Refresh lề trái
 col_rf1, col_rf2 = st.columns([1, 3])
 with col_rf1:
-    st.markdown("<div class='btn-refresh'>", unsafe_allow_html=True)
     if st.button("🔄 Cập nhật dữ liệu"):
         st.cache_data.clear()
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 url = "https://docs.google.com/spreadsheets/d/1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU/edit?usp=sharing"
 ADMIN_PASSWORD = "8994"
@@ -103,8 +100,7 @@ with tab1:
     st.markdown("### Nhập SĐT để kiểm tra đơn hàng")
     phone_input = st.text_input("Nhập số điện thoại của bạn:", placeholder="Ví dụ: 0901234567")
     
-    st.markdown("<div class='btn-main'>", unsafe_allow_html=True)
-    if st.button("KIỂM TRA 🚀"):
+    if st.button("KIỂM TRA 🚀", type="primary"):
         if phone_input:
             clean_input = phone_input.strip().lstrip('0')
             df_chot['Phone_Compare'] = df_chot['SDT full'].astype(str).str.lstrip('0')
@@ -117,7 +113,6 @@ with tab1:
                 st.warning("Không tìm thấy đơn hàng nào đã CHỐT ĐƠN với SĐT này. Bạn kiểm tra lại nhé!")
         else:
             st.warning("Bạn chưa nhập số điện thoại kìa!")
-    st.markdown("</div>", unsafe_allow_html=True)
 
     if 'verified_phone' in st.session_state:
         clean_input = st.session_state['verified_phone']
@@ -238,43 +233,48 @@ with tab1:
 
         # NÚT CHỐT ĐƠN
         if not is_locked:
-            st.markdown("<div class='btn-main'>", unsafe_allow_html=True)
-            if st.button("🚀 XÁC NHẬN / CẬP NHẬT THÔNG TIN"):
-                with st.spinner("Đang lưu thông tin vào hệ thống..."):
-                    conn = st.connection("gsheets", type=GSheetsConnection)
-                    df_form = conn.read(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1")
-                    df_form.columns = df_form.columns.str.strip()
-                    
-                    cols_to_add = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn']
-                    for c in cols_to_add:
-                        if c not in df_form.columns: df_form[c] = ""
-                    
-                    # 💡 TỐI ƯU: Lấy trực tiếp số thứ tự dòng (index) từ tab Data App 
-                    # do 2 tab đồng bộ 1-1 với nhau, bỏ qua khâu dò tìm SĐT bên tab Form
-                    idx_list = user_orders.index
-                    
-                    if len(idx_list) > 0:
-                        for idx in idx_list:
-                            # Nếu khách kiện mà bỏ tick (tức là điền địa chỉ) -> Quất thành SHIP
-                            if is_event and not is_correct:
-                                df_form.at[idx, 'Bạn muốn nhận hàng như thế nào?'] = "Ship về nhà"
-                                
-                            df_form.at[idx, 'Checked SDT'] = final_phone
-                            df_form.at[idx, 'Checked Địa chỉ'] = final_address
-                            df_form.at[idx, 'Ngân hàng'] = final_bank
-                            df_form.at[idx, 'STK'] = final_stk
-                            df_form.at[idx, 'Chủ TK'] = final_chu
-                            df_form.at[idx, 'Lưu ý'] = final_note
-                            df_form.at[idx, 'Trạng thái xác nhận'] = "Đã xác nhận"
-                            
-                        conn.update(worksheet="Câu trả lời biểu mẫu 1", data=df_form)
+            if st.button("🚀 XÁC NHẬN / CẬP NHẬT THÔNG TIN", type="primary"):
+                # CHỐT CHẶN: Bỏ tick nhưng không điền gì
+                if not is_correct and final_phone_input.strip() == "" and final_address_input.strip() == "":
+                    st.warning("⚠️ Bạn quên chưa tick xác nhận thông tin giao hàng hoặc chưa điền thông tin cập nhật rồi. Bạn vui lòng tick hoặc điền thông tin mới nếu cần cập nhật nha.")
+                else:
+                    with st.spinner("Đang lưu thông tin vào hệ thống..."):
+                        conn = st.connection("gsheets", type=GSheetsConnection)
+                        df_form = conn.read(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1")
+                        df_form.columns = df_form.columns.str.strip()
                         
-                        st.cache_data.clear() 
-                        st.success("✅ ĐÃ GHI NHẬN LÊN HỆ THỐNG! Cảm ơn bạn rất nhiều 💖")
-                        st.balloons()
-                    else:
-                        st.error("Có lỗi xảy ra, không lấy được vị trí dòng. Báo admin nhé!")
-            st.markdown("</div>", unsafe_allow_html=True)
+                        # 1. ÉP KIỂU OBJECT ĐỂ CHỐNG LỖI TypeError CỦA PANDAS
+                        cols_to_add = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn']
+                        for c in cols_to_add:
+                            if c not in df_form.columns: df_form[c] = ""
+                            df_form[c] = df_form[c].astype(object) 
+                            
+                        if 'Bạn muốn nhận hàng như thế nào?' in df_form.columns:
+                            df_form['Bạn muốn nhận hàng như thế nào?'] = df_form['Bạn muốn nhận hàng như thế nào?'].astype(object)
+                        
+                        # Lấy index từ Data App
+                        idx_list = user_orders.index
+                        
+                        if len(idx_list) > 0:
+                            for idx in idx_list:
+                                if is_event and not is_correct:
+                                    df_form.at[idx, 'Bạn muốn nhận hàng như thế nào?'] = "Ship về nhà"
+                                    
+                                df_form.at[idx, 'Checked SDT'] = final_phone
+                                df_form.at[idx, 'Checked Địa chỉ'] = final_address
+                                df_form.at[idx, 'Ngân hàng'] = final_bank
+                                df_form.at[idx, 'STK'] = final_stk
+                                df_form.at[idx, 'Chủ TK'] = final_chu
+                                df_form.at[idx, 'Lưu ý'] = final_note
+                                df_form.at[idx, 'Trạng thái xác nhận'] = "Đã xác nhận"
+                                
+                            conn.update(worksheet="Câu trả lời biểu mẫu 1", data=df_form)
+                            
+                            st.cache_data.clear() 
+                            st.success("✅ ĐÃ GHI NHẬN LÊN HỆ THỐNG! Cảm ơn bạn rất nhiều 💖")
+                            st.balloons()
+                        else:
+                            st.error("Có lỗi xảy ra, không lấy được vị trí dòng. Báo admin nhé!")
 
 # ================= TAB 2: ADMIN CONFIRM =================
 with tab2:
@@ -420,12 +420,14 @@ with tab2:
         for p in products_table: tab3_html += f"<th>{p}</th>"
         tab3_html += "</tr></thead><tbody>"
         for i in range(3):
-            # Tô màu vàng làm nổi bật dòng Sự kiện
-            tr_style = "background-color: #FFF3CD; color: #856404;" if "Sự kiện" in table_data['Phân loại'][i] else ""
-            tab3_html += f"<tr style='{tr_style}'><td>{table_data['Phân loại'][i]}</td>"
+            # CẬP NHẬT: Nhúng style đổi màu trực tiếp vào <td> để đè lên nền trắng mặc định!
+            is_ev = "Sự kiện" in table_data['Phân loại'][i]
+            td_style = "background-color: #FFF3CD !important; color: #856404 !important; font-weight: bold;" if is_ev else ""
+            
+            tab3_html += f"<tr><td style='{td_style}'>{table_data['Phân loại'][i]}</td>"
             for p in products_table:
                 val = table_data[p][i]
-                tab3_html += f"<td>{val if val > 0 else ''}</td>"
+                tab3_html += f"<td style='{td_style}'>{val if val > 0 else ''}</td>"
             tab3_html += "</tr>"
         tab3_html += "</tbody></table>"
         st.markdown(tab3_html, unsafe_allow_html=True)
