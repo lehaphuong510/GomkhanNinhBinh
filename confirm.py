@@ -249,8 +249,9 @@ with tab1:
                     for c in cols_to_add:
                         if c not in df_form.columns: df_form[c] = ""
                     
-                    df_form['Phone_Compare'] = df_form['SDT full'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.lstrip('0')
-                    idx_list = df_form[df_form['Phone_Compare'] == clean_input].index
+                    # 💡 TỐI ƯU: Lấy trực tiếp số thứ tự dòng (index) từ tab Data App 
+                    # do 2 tab đồng bộ 1-1 với nhau, bỏ qua khâu dò tìm SĐT bên tab Form
+                    idx_list = user_orders.index
                     
                     if len(idx_list) > 0:
                         for idx in idx_list:
@@ -266,14 +267,13 @@ with tab1:
                             df_form.at[idx, 'Lưu ý'] = final_note
                             df_form.at[idx, 'Trạng thái xác nhận'] = "Đã xác nhận"
                             
-                        df_form = df_form.drop(columns=['Phone_Compare'])
                         conn.update(worksheet="Câu trả lời biểu mẫu 1", data=df_form)
                         
                         st.cache_data.clear() 
                         st.success("✅ ĐÃ GHI NHẬN LÊN HỆ THỐNG! Cảm ơn bạn rất nhiều 💖")
                         st.balloons()
                     else:
-                        st.error("Có lỗi xảy ra, không tìm thấy data gốc. Báo admin nhé!")
+                        st.error("Có lỗi xảy ra, không lấy được vị trí dòng. Báo admin nhé!")
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ================= TAB 2: ADMIN CONFIRM =================
