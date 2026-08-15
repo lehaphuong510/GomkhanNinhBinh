@@ -8,25 +8,24 @@ from streamlit_gsheets import GSheetsConnection
 st.set_page_config(page_title="App Nội Bộ - Lọc Tỉnh Thành", layout="wide")
 st.title("📦 HỆ THỐNG LỌC ĐỊA CHỈ SHIP - NỘI BỘ")
 
-# ID Sheet của m (Đã điền sẵn)
+# Nút Refresh
+col_rf1, col_rf2, col_rf3 = st.columns([1,2,1])
+with col_rf2:
+    if st.button("🔄 Cập nhật dữ liệu mới nhất từ Biểu Mẫu"):
+        st.cache_data.clear()
+        st.rerun()
+st.divider()
+
 SHEET_ID = '1RmfAjOdPwHdCNkI1evcDTj01HM6dyob9Dh-TcuSM5dU' 
 SHEET_NAME = 'Data%20App'
 
-# ================= ĐIỀN TÊN CỘT =================
 COL_TRANG_THAI = 'Trạng thái chuyển khoản'
-COLS_SAN_PHAM = [
-    'Bandana TTB', 
-    'Twilly TTB', 
-    'Bandana ĐMN', 
-    'Twilly ĐMN'
-]
+COLS_SAN_PHAM = ['Bandana TTB', 'Twilly TTB', 'Bandana ĐMN', 'Twilly ĐMN']
 COL_NOI_NHAN = 'Nơi nhận' 
-
 COL_TEN = 'Nickname' 
 COL_SDT = 'SDT full' 
 COL_DIA_CHI = 'Địa chỉ' 
 
-# ================= TỪ ĐIỂN 63 TỈNH THÀNH =================
 DICT_TINH = {
     "Hồ Chí Minh": ["hồ chí minh", "hcm", "tp hcm", "tphcm", "sài gòn", "sg"],
     "Hà Nội": ["hà nội", "hn", "ha noi"],
@@ -61,33 +60,25 @@ DICT_TINH = {
     "Vĩnh Long": ["vĩnh long"], "Vĩnh Phúc": ["vĩnh phúc"], "Yên Bái": ["yên bái"]
 }
 
-# ================= TỪ ĐIỂN 3 MIỀN =================
 DICT_MIEN = {
     "Miền Bắc": ["Hà Nội", "Hải Phòng", "Quảng Ninh", "Vĩnh Phúc", "Bắc Ninh", "Hải Dương", "Hưng Yên", "Hà Nam", "Nam Định", "Thái Bình", "Ninh Bình", "Hà Giang", "Cao Bằng", "Bắc Kạn", "Tuyên Quang", "Thái Nguyên", "Lạng Sơn", "Bắc Giang", "Phú Thọ", "Điện Biên", "Lai Châu", "Sơn La", "Hòa Bình", "Yên Bái", "Lào Cai"],
     "Miền Trung": ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
     "Miền Nam": ["Hồ Chí Minh", "Bình Dương", "Đồng Nai", "Bà Rịa - Vũng Tàu", "Tây Ninh", "Bình Phước", "Long An", "Tiền Giang", "Bến Tre", "Vĩnh Long", "Trà Vinh", "Đồng Tháp", "Hậu Giang", "Sóc Trăng", "An Giang", "Kiên Giang", "Bạc Liêu", "Cà Mau", "Cần Thơ"]
 }
 
-# Hàm bóc tách địa chỉ
 def quet_tinh_thanh(dia_chi):
-    if pd.isna(dia_chi):
-        return "Chưa rõ"
-    
+    if pd.isna(dia_chi) or dia_chi == "": return "Chưa rõ"
     dia_chi_lower = str(dia_chi).lower()
     for tinh, tu_khoa_list in DICT_TINH.items():
         for tu_khoa in tu_khoa_list:
-            if re.search(rf"\b{tu_khoa}\b", dia_chi_lower):
-                return tinh
+            if re.search(rf"\b{tu_khoa}\b", dia_chi_lower): return tinh
     return "Tỉnh khác (Cần check tay)"
 
-# Định nghĩa hàm xác định miền cho data gốc
 def xac_dinh_mien(tinh):
     for mien, danh_sach in DICT_MIEN.items():
-        if tinh in danh_sach:
-            return mien
+        if tinh in danh_sach: return mien
     return "Khác"
 
-# ================= XỬ LÝ DỮ LIỆU =================
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit?usp=sharing"
 
 @st.cache_data(ttl=60)
@@ -99,57 +90,46 @@ def load_data():
     if 'SDT full' in df.columns:
         def fix_sdt(x):
             s = str(x).replace('.0', '').strip()
-            if s.lower() == 'nan' or s.lower() == 'none' or s == '':
-                return ""
-            if s.isdigit() and not s.startswith('0'):
-                return '0' + s
+            if s.lower() in ['nan', 'none', '']: return ""
+            if s.isdigit() and not s.startswith('0'): return '0' + s
             return s
-            
         df['SDT full'] = df['SDT full'].apply(fix_sdt)
         
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
-        
     return df
 
 try:
     df_raw = load_data()
-    
-    # 1. Lọc bạo lực: Chỉ lấy những đơn có chữ "CHỐT ĐƠN"
     df_chot_don = df_raw[df_raw[COL_TRANG_THAI].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)].copy()
     
-    # Lọc phễu 2 (Chỉ lấy SHIP)
     if COL_NOI_NHAN in df_chot_don.columns:
         df_chot_don = df_chot_don[df_chot_don[COL_NOI_NHAN].astype(str).str.upper().str.contains('SHIP', na=False)]
         
-    # 2. Tạo thêm cột Tỉnh Thành bằng hàm quét Regex
+    # === THUẬT TOÁN ƯU TIÊN LẤY DỮ LIỆU ĐÃ CONFIRM ===
+    if 'Checked SDT' in df_chot_don.columns:
+        df_chot_don['SDT full'] = df_chot_don['Checked SDT'].replace('', pd.NA).replace('nan', pd.NA).fillna(df_chot_don['SDT full'])
+    if 'Checked Địa chỉ' in df_chot_don.columns:
+        df_chot_don['Địa chỉ'] = df_chot_don['Checked Địa chỉ'].replace('', pd.NA).replace('nan', pd.NA).fillna(df_chot_don['Địa chỉ'])
+        
     if COL_DIA_CHI in df_chot_don.columns:
         df_chot_don['Tỉnh Thành'] = df_chot_don[COL_DIA_CHI].apply(quet_tinh_thanh)
     else:
-        st.error(f"❌ Không tìm thấy cột '{COL_DIA_CHI}' trong Sheet! M nhớ check lại tên cột nha.")
+        st.error(f"❌ Không tìm thấy cột '{COL_DIA_CHI}' trong Sheet!")
         st.stop()
         
-    # Gắn thêm cột "Khu vực" ngầm vào data để làm gốc lọc
     if 'Tỉnh Thành' in df_chot_don.columns:
         df_chot_don['Khu vực'] = df_chot_don['Tỉnh Thành'].apply(xac_dinh_mien)
 
-    # ================= GIAO DIỆN HIỂN THỊ =================
+    # ================= 1. GIAO DIỆN BẢNG THỐNG KÊ =================
     st.subheader("1. 📊 Bảng tổng hợp số lượng theo tỉnh")
+    mien_duoc_chon = st.multiselect("📍 Lọc dữ liệu theo Khu vực:", ["Tất cả", "Miền Bắc", "Miền Trung", "Miền Nam", "Khác"], default=["Tất cả"])
     
-    # BỘ LỌC 1: LỌC MIỀN (Áp dụng cho toàn bộ app)
-    mien_duoc_chon = st.multiselect(
-        "📍 Lọc dữ liệu theo Khu vực (Áp dụng cho cả bảng thống kê và danh sách chi tiết):",
-        ["Tất cả", "Miền Bắc", "Miền Trung", "Miền Nam", "Khác"],
-        default=["Tất cả"]
-    )
-    
-    # Cắt data theo miền đã chọn (Tạo thành 1 bộ data mới tên là df_loc_mien)
     if "Tất cả" in mien_duoc_chon or len(mien_duoc_chon) == 0:
         df_loc_mien = df_chot_don.copy()
     else:
         df_loc_mien = df_chot_don[df_chot_don['Khu vực'].isin(mien_duoc_chon)].copy()
 
-    # --- BẢNG 1: XỬ LÝ DỮ LIỆU THỐNG KÊ (Dựa trên df_loc_mien) ---
     df_tong_hop = df_loc_mien['Tỉnh Thành'].value_counts().reset_index()
     df_tong_hop.columns = ['Tỉnh Thành', 'Số lượng đơn']
     
@@ -162,106 +142,107 @@ try:
             
     df_tong_hop = df_tong_hop.fillna(0)
     for col in df_tong_hop.columns:
-        if col != 'Tỉnh Thành':
-            df_tong_hop[col] = df_tong_hop[col].astype(int)
+        if col != 'Tỉnh Thành': df_tong_hop[col] = df_tong_hop[col].astype(int)
 
     if not df_tong_hop.empty:
-        # 1. Tính tổng
         tong_dict = {'Tỉnh Thành': '🌟 TỔNG CỘNG'}
         for col in df_tong_hop.columns:
-            if col != 'Tỉnh Thành':
-                tong_dict[col] = df_tong_hop[col].sum()
-        
-        # 2. Đảo vị trí: Để pd.DataFrame([tong_dict]) lên trước để nó nằm dòng 0
+            if col != 'Tỉnh Thành': tong_dict[col] = df_tong_hop[col].sum()
         df_tong_hop = pd.concat([pd.DataFrame([tong_dict]), df_tong_hop], ignore_index=True)
 
-    # 3. Hàm tô màu: Nếu là dòng TỔNG CỘNG thì tô nền vàng, chữ đỏ đậm
     def to_mau_dong_tong(row):
         if row['Tỉnh Thành'] == '🌟 TỔNG CỘNG':
             return ['background-color: #ffeb3b; color: #d32f2f; font-weight: bold;'] * len(row)
         return [''] * len(row)
         
-    # 4. Hiển thị bảng đã được bọc "style"
     st.dataframe(df_tong_hop.style.apply(to_mau_dong_tong, axis=1), use_container_width=True)          
-      
     st.divider()
     
+    # ================= 2. BẢNG CHI TIẾT =================
     st.subheader("2. 🔍 Trích xuất danh sách gửi Ship")
-    
-    # BỘ LỌC 2: LỌC TỈNH (Danh sách tỉnh sẽ tự co lại theo miền đã chọn ở trên)
     danh_sach_tinh = sorted(df_loc_mien['Tỉnh Thành'].unique().tolist())
+    tinh_duoc_chon = st.multiselect("👉 Chọn chi tiết Tỉnh/Thành phố:", ["Tất cả"] + danh_sach_tinh, default=["Tất cả"])
     
-    tinh_duoc_chon = st.multiselect(
-        "👉 Chọn chi tiết Tỉnh/Thành phố muốn xem (Có thể chọn nhiều):", 
-        ["Tất cả"] + danh_sach_tinh, 
-        default=["Tất cả"]
-    )
-    
-    # --- BẢNG 2: XỬ LÝ DỮ LIỆU CHI TIẾT ---
     if "Tất cả" in tinh_duoc_chon or len(tinh_duoc_chon) == 0:
         df_hien_thi = df_loc_mien
     else:
         df_hien_thi = df_loc_mien[df_loc_mien['Tỉnh Thành'].isin(tinh_duoc_chon)]
         
     cot_can_xem = [COL_TEN, COL_SDT, COL_DIA_CHI] + COLS_SAN_PHAM
+    if 'Lưu ý' in df_hien_thi.columns: cot_can_xem.append('Lưu ý') # Hiện thêm cột lưu ý cho team đọc
+    
     cot_thuc_te = [col for col in cot_can_xem if col in df_hien_thi.columns]
-        
     st.dataframe(df_hien_thi[cot_thuc_te], use_container_width=True, hide_index=True)
-
     st.divider()
 
-    # ================= CẬP NHẬT LỰA CHỌN ĐVVC =================
-    st.subheader("3. 📊 Xuất File Excel ĐVVC")    
-    
-    # Cho phép user chọn ĐVVC
+    # ================= 3. XUẤT EXCEL GỘP ĐƠN =================
+    st.subheader("3. 📊 Xuất File Excel ĐVVC (Tự động Gộp SĐT)")    
     dvvc_choice = st.radio("🚛 Chọn form xuất Đơn vị vận chuyển:", ["GHTK - Giao Hàng Tiết Kiệm", "VTP - Viettel Post"], horizontal=True)
 
     if st.button(f"Tạo File Excel cho {dvvc_choice.split(' - ')[0]}"):
-        df_export = pd.DataFrame()
+        # === THUẬT TOÁN GỘP SĐT ===
+        df_grouping = df_hien_thi.copy().reset_index(drop=True)
         
-        # 👇👇👇 CHÌA KHÓA FIX LỖI Ở ĐÂY 👇👇👇
-        # Ép reset lại số thứ tự dòng (index) để không bị lệch khi ráp cột
-        df_source = df_hien_thi.reset_index(drop=True)
+        # Đổi ✅ thành số 1 để đem đi cộng
+        for p in COLS_SAN_PHAM:
+            df_grouping[p] = df_grouping[p].astype(str).apply(lambda x: 1 if "✅" in x else 0)
+            
+        def parse_money(m):
+            digits = re.sub(r'[^\d]', '', str(m))
+            return int(digits) if digits else 0
         
-        # Hàm đếm số lượng: Quét 4 cột sản phẩm xem có bao nhiêu tick ✅
-        def dem_so_luong(row):
-            count = 0
+        if 'Số tiền' in df_grouping.columns:
+            df_grouping['Số tiền'] = df_grouping['Số tiền'].apply(parse_money)
+        else:
+            df_grouping['Số tiền'] = 0
+            
+        # Gom nhóm
+        agg_dict = {COL_TEN: 'first', COL_DIA_CHI: 'first', 'Số tiền': 'sum'}
+        for p in COLS_SAN_PHAM: agg_dict[p] = 'sum'
+        if 'Phiên lấy hàng' in df_grouping.columns: agg_dict['Phiên lấy hàng'] = 'first'
+        
+        df_grouped = df_grouping.groupby(COL_SDT, as_index=False).agg(agg_dict)
+        
+        # Sinh tên sản phẩm mới và tổng SL
+        def tao_sp_gom(row):
+            sp_list = []
             for p in COLS_SAN_PHAM:
-                if "✅" in str(row.get(p, '')):
-                    count += 1
-            return count if count > 0 else 1 
+                if row[p] > 0: sp_list.append(f"{p} (x{row[p]})")
+            return ", ".join(sp_list)
+            
+        df_grouped['Tên SP Gộp'] = df_grouped.apply(tao_sp_gom, axis=1)
+        df_grouped['Tổng SL'] = df_grouped.apply(lambda r: sum([r[p] for p in COLS_SAN_PHAM]), axis=1)
 
+        # Ráp vào df_export
+        df_export = pd.DataFrame()
         if "GHTK" in dvvc_choice:
-            # ==== LOGIC XUẤT CHO GHTK ====
             prefix = "GHTK"
             df_export['Mã ĐH riêng'] = ""
-            df_export['Tên khách hàng'] = df_source.get(COL_TEN, '')
-            df_export['SĐT'] = df_source.get(COL_SDT, '')
-            df_export['Địa chỉ chi tiết'] = df_source.get(COL_DIA_CHI, '')
-            df_export['Tên sản phẩm'] = df_source.get('Sản phẩm đăng ký thành công', '')
-            df_export['Số lượng'] = df_source.apply(dem_so_luong, axis=1)
+            df_export['Tên khách hàng'] = df_grouped.get(COL_TEN, '')
+            df_export['SĐT'] = df_grouped.get(COL_SDT, '')
+            df_export['Địa chỉ chi tiết'] = df_grouped.get(COL_DIA_CHI, '')
+            df_export['Tên sản phẩm'] = df_grouped['Tên SP Gộp']
+            df_export['Số lượng'] = df_grouped['Tổng SL']
             df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
-            df_export['Giá trị hàng'] = df_source.get('Số tiền', '')
+            df_export['Giá trị hàng'] = df_grouped['Số tiền']
             df_export['Tiền CoD'] = ""
             df_export['Dịch vụ gia tăng'] = ""
             df_export['Hình thức lấy hàng'] = ""
-            df_export['Phiên lấy hàng'] = df_source.get('Phiên lấy hàng', '')
+            df_export['Phiên lấy hàng'] = df_grouped.get('Phiên lấy hàng', '')
             df_export['Dịch vụ & Hình thức VC'] = ""
             df_export['Trả ship'] = "Khách trả"
 
         elif "VTP" in dvvc_choice:
-            # ==== LOGIC XUẤT CHO VIETTEL POST ====
             prefix = "VTP"
-            # Cột STT chạy từ 1 đến hết danh sách
-            df_export['STT'] = range(1, len(df_source) + 1)
+            df_export['STT'] = range(1, len(df_grouped) + 1)
             df_export['Mã đơn hàng '] = ""
-            df_export['Tên người nhận (*)'] = df_source.get(COL_TEN, '')
-            df_export['Số ĐT người nhận (*)'] = df_source.get(COL_SDT, '')
-            df_export['Địa chỉ nhận (*)'] = df_source.get(COL_DIA_CHI, '')
-            df_export['Tên hàng hóa (*)'] = df_source.get('Sản phẩm đăng ký thành công', '')
-            df_export['Số lượng'] = df_source.apply(dem_so_luong, axis=1)
+            df_export['Tên người nhận (*)'] = df_grouped.get(COL_TEN, '')
+            df_export['Số ĐT người nhận (*)'] = df_grouped.get(COL_SDT, '')
+            df_export['Địa chỉ nhận (*)'] = df_grouped.get(COL_DIA_CHI, '')
+            df_export['Tên hàng hóa (*)'] = df_grouped['Tên SP Gộp']
+            df_export['Số lượng'] = df_grouped['Tổng SL']
             df_export['Trọng lượng (gram)  (*)'] = 100
-            df_export['Giá trị hàng (VND) (*)'] = df_source.get('Số tiền', '')
+            df_export['Giá trị hàng (VND) (*)'] = df_grouped['Số tiền']
             df_export['Tiền thu hộ COD (VND)'] = 0
             df_export['Loại hàng hóa (*)'] = "Khăn"
             df_export['Tính chất hàng hóa đặc biệt'] = ""
@@ -276,137 +257,70 @@ try:
             df_export['Thời gian hẹn lấy'] = ""
             df_export['Thời gian giao'] = ""
 
-        # 3. Đóng gói thành file Excel (lưu vào bộ nhớ đệm)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df_export.to_excel(writer, index=False, sheet_name='Sheet1')
         excel_data = output.getvalue()
         
-        # TẠO TÊN FILE THÔNG MINH (Dựa trên prefix của ĐVVC)
         if "Tất cả" in tinh_duoc_chon or len(tinh_duoc_chon) == 0:
             ten_file = f"{prefix}_Tat_Ca.xlsx"
         else:
             chuoi_tinh = "_".join(tinh_duoc_chon)
-            if len(chuoi_tinh) > 40:
-                chuoi_tinh = "Nhieu_Tinh_Thanh"
-            ten_file = f"{prefix}_{chuoi_tinh}.xlsx"
+            ten_file = f"{prefix}_{chuoi_tinh if len(chuoi_tinh) <= 40 else 'Nhieu_Tinh_Thanh'}.xlsx"
         
-        # 4. Hiện nút Download file về máy
+        st.success(f"Đã gộp thành công {len(df_hien_thi)} đơn gốc thành {len(df_grouped)} đơn Ship!")
         st.download_button(
-            label=f"📥 TẢI FILE EXCEL {prefix} (.xlsx)",
+            label=f"📥 TẢI FILE EXCEL {prefix} ĐÃ GỘP ĐƠN (.xlsx)",
             data=excel_data,
             file_name=ten_file,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     
     st.subheader("4. 🖨️ Xuất File In Label (Dán Decal)")
-    
-    # Check xem sheet đã có cột Mã vận đơn chưa, chưa có thì gán rỗng để không bị lỗi
     COL_MVD = 'Mã vận đơn'
-    if COL_MVD not in df_hien_thi.columns:
-        df_hien_thi[COL_MVD] = ""
+    if COL_MVD not in df_hien_thi.columns: df_hien_thi[COL_MVD] = ""
 
-    if st.button("Tạo File In Label cho danh sách trên"):
-        # Cấu hình giao diện bản in (CSS)
+    if st.button("Tạo File In Label (Bản gốc)"):
         html_content = """
         <html><head><meta charset="utf-8">
         <style>
-            @page { 
-                size: 100mm 150mm; /* Khổ A6 chuẩn */
-                margin: 0; 
-            }
-            body { 
-                font-family: Arial, sans-serif; 
-                margin: 0; 
-                padding: 2mm; 
-                background-color: #f4f4f9; 
-            }
-            .grid-container { 
-                display: flex; 
-                flex-direction: column; /* Xếp dọc từ trên xuống */
-                gap: 2mm; /* Khoảng cách giữa 3 tem */
-            }
-            .label-box { 
-                width: 96mm; 
-                height: 47mm; /* 47x3 = 141mm, vừa khít 150mm A6 */
-                background: #fff; 
-                border: 1px dashed #000; 
-                padding: 5px; 
-                border-radius: 4px; 
-                box-sizing: border-box; 
-                page-break-inside: avoid; /* Chống cắt nửa tem khi sang trang */
-            }
-            .title { 
-                font-size: 14px; 
-                font-weight: bold; 
-                color: #333; 
-                border-bottom: 1px solid #ccc; 
-                padding-bottom: 2px; 
-                margin-bottom: 4px; 
-            }
-            .info { 
-                font-size: 13px; /* Thu nhỏ chữ lại để vừa khung */
-                margin-bottom: 2px; 
-                line-height: 1.5; 
-            }
-            .products {
-                font-size: 10px; /* Font sản phẩm nhỏ gọn */
-            }
-        </style></head><body>
-        <div class="grid-container">
+            @page { size: 100mm 150mm; margin: 0; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 2mm; background-color: #f4f4f9; }
+            .grid-container { display: flex; flex-direction: column; gap: 2mm; }
+            .label-box { width: 96mm; height: 47mm; background: #fff; border: 1px dashed #000; padding: 5px; border-radius: 4px; box-sizing: border-box; page-break-inside: avoid; }
+            .title { font-size: 14px; font-weight: bold; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; }
+            .info { font-size: 13px; margin-bottom: 2px; line-height: 1.5; }
+            .products { font-size: 10px; }
+        </style></head><body><div class="grid-container">
         """
-
-        # Chạy vòng lặp quét từng đơn để tạo Label
         for index, row in df_hien_thi.iterrows():
             ten = row.get(COL_TEN, '')
             sdt = str(row.get(COL_SDT, '')).replace('.0', '')
             diachi = row.get(COL_DIA_CHI, '')
             mvd = row.get(COL_MVD, '')
             
-            # Xử lý logic Tick box và In đậm, Tô màu
             has_p1 = "✅" in str(row.get(COLS_SAN_PHAM[0], ''))
             b1 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>BD Trịnh Thăng Bình</b>" if has_p1 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
-            
             has_p2 = "✅" in str(row.get(COLS_SAN_PHAM[1], ''))
             b2 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>TW Trịnh Thăng Bình</b>" if has_p2 else "▢ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
-            
             has_p3 = "✅" in str(row.get(COLS_SAN_PHAM[2], ''))
             b3 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>BD Đinh Mạnh Ninh</b>" if has_p3 else "▢ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
-            
             has_p4 = "✅" in str(row.get(COLS_SAN_PHAM[3], ''))
             b4 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>TW Đinh Mạnh Ninh</b>" if has_p4 else "▢ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
 
-            # Gắn data vào khung (Dùng Flexbox chia 2 bên trái/phải)
             html_content += f"""
             <div class="label-box">
                 <div class="title">📦 MÃ VĐ: {mvd}</div>
                 <div class="info">👤 <b>{ten}</b> <br>📞 {sdt}</div>
                 <div class="info">🏠 {diachi}</div>
-                
-                <!-- Bố cục chia 2 cột -->
                 <div class="products" style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px;">
-                    <div style="flex: 1; padding-right: 5px;">
-                        <div style="margin-bottom: 4px;">{b1}</div>
-                        <div style="margin-bottom: 4px;">{b2}</div>
-                    </div>
-                    <div style="flex: 1; padding-left: 5px;">
-                        <div style="margin-bottom: 4px;">{b3}</div>
-                        <div style="margin-bottom: 4px;">{b4}</div>
-                    </div>
+                    <div style="flex: 1; padding-right: 5px;"><div style="margin-bottom: 4px;">{b1}</div><div style="margin-bottom: 4px;">{b2}</div></div>
+                    <div style="flex: 1; padding-left: 5px;"><div style="margin-bottom: 4px;">{b3}</div><div style="margin-bottom: 4px;">{b4}</div></div>
                 </div>
             </div>
             """
-
         html_content += "</div></body></html>"
-
-        # Nút tải file HTML
-        st.download_button(
-            label="📥 TẢI FILE IN (.html)",
-            data=html_content,
-            file_name="Label_Giao_Hang.html",
-            mime="text/html"
-        )
+        st.download_button(label="📥 TẢI FILE IN LABLE (.html)", data=html_content, file_name="Label_Giao_Hang.html", mime="text/html")
 
 except Exception as e:
-    st.error(f"Lỗi rồi m ơi: {e}")
-    st.info("Nhớ kiểm tra lại Tên Cột ở phần [CHECK LẠI] xem m gõ đúng 100% chữ cái hoa/thường trên Sheet chưa nha!")
+    st.error(f"Lỗi hệ thống: {e}")
