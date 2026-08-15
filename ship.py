@@ -59,7 +59,6 @@ DICT_TINH = {
     "Tiền Giang": ["tiền giang", "mỹ tho"], "Trà Vinh": ["trà vinh"], "Tuyên Quang": ["tuyên quang"], 
     "Vĩnh Long": ["vĩnh long"], "Vĩnh Phúc": ["vĩnh phúc"], "Yên Bái": ["yên bái"]
 }
-
 DICT_MIEN = {
     "Miền Bắc": ["Hà Nội", "Hải Phòng", "Quảng Ninh", "Vĩnh Phúc", "Bắc Ninh", "Hải Dương", "Hưng Yên", "Hà Nam", "Nam Định", "Thái Bình", "Ninh Bình", "Hà Giang", "Cao Bằng", "Bắc Kạn", "Tuyên Quang", "Thái Nguyên", "Lạng Sơn", "Bắc Giang", "Phú Thọ", "Điện Biên", "Lai Châu", "Sơn La", "Hòa Bình", "Yên Bái", "Lào Cai"],
     "Miền Trung": ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
@@ -106,7 +105,7 @@ try:
     if COL_NOI_NHAN in df_chot_don.columns:
         df_chot_don = df_chot_don[df_chot_don[COL_NOI_NHAN].astype(str).str.upper().str.contains('SHIP', na=False)]
         
-    # === THUẬT TOÁN ƯU TIÊN LẤY DỮ LIỆU ĐÃ CONFIRM ===
+    # === ƯU TIÊN LẤY DỮ LIỆU ĐÃ CONFIRM ===
     if 'Checked SDT' in df_chot_don.columns:
         df_chot_don['SDT full'] = df_chot_don['Checked SDT'].replace('', pd.NA).replace('nan', pd.NA).fillna(df_chot_don['SDT full'])
     if 'Checked Địa chỉ' in df_chot_don.columns:
@@ -169,51 +168,51 @@ try:
         df_hien_thi = df_loc_mien[df_loc_mien['Tỉnh Thành'].isin(tinh_duoc_chon)]
         
     cot_can_xem = [COL_TEN, COL_SDT, COL_DIA_CHI] + COLS_SAN_PHAM
-    if 'Lưu ý' in df_hien_thi.columns: cot_can_xem.append('Lưu ý') # Hiện thêm cột lưu ý cho team đọc
+    if 'Lưu ý' in df_hien_thi.columns: cot_can_xem.append('Lưu ý')
     
     cot_thuc_te = [col for col in cot_can_xem if col in df_hien_thi.columns]
     st.dataframe(df_hien_thi[cot_thuc_te], use_container_width=True, hide_index=True)
     st.divider()
+
+    # === THUẬT TOÁN GỘP ĐƠN CHUNG CHO EXCEL VÀ LABEL ===
+    df_grouping = df_hien_thi.copy().reset_index(drop=True)
+    
+    # Đổi ✅ thành 1
+    for p in COLS_SAN_PHAM:
+        df_grouping[p] = df_grouping[p].astype(str).apply(lambda x: 1 if "✅" in x else 0)
+        
+    def parse_money(m):
+        digits = re.sub(r'[^\d]', '', str(m))
+        return int(digits) if digits else 0
+    
+    if 'Số tiền' in df_grouping.columns:
+        df_grouping['Số tiền'] = df_grouping['Số tiền'].apply(parse_money)
+    else:
+        df_grouping['Số tiền'] = 0
+        
+    COL_MVD = 'Mã vận đơn'
+    if COL_MVD not in df_grouping.columns: df_grouping[COL_MVD] = ""
+
+    agg_dict = {COL_TEN: 'first', COL_DIA_CHI: 'first', 'Số tiền': 'sum', COL_MVD: 'first'}
+    for p in COLS_SAN_PHAM: agg_dict[p] = 'sum'
+    if 'Phiên lấy hàng' in df_grouping.columns: agg_dict['Phiên lấy hàng'] = 'first'
+    
+    df_grouped = df_grouping.groupby(COL_SDT, as_index=False).agg(agg_dict)
+    
+    def tao_sp_gom(row):
+        sp_list = []
+        for p in COLS_SAN_PHAM:
+            if row[p] > 0: sp_list.append(f"{p} (x{row[p]})")
+        return ", ".join(sp_list)
+        
+    df_grouped['Tên SP Gộp'] = df_grouped.apply(tao_sp_gom, axis=1)
+    df_grouped['Tổng SL'] = df_grouped.apply(lambda r: sum([r[p] for p in COLS_SAN_PHAM]), axis=1)
 
     # ================= 3. XUẤT EXCEL GỘP ĐƠN =================
     st.subheader("3. 📊 Xuất File Excel ĐVVC (Tự động Gộp SĐT)")    
     dvvc_choice = st.radio("🚛 Chọn form xuất Đơn vị vận chuyển:", ["GHTK - Giao Hàng Tiết Kiệm", "VTP - Viettel Post"], horizontal=True)
 
     if st.button(f"Tạo File Excel cho {dvvc_choice.split(' - ')[0]}"):
-        # === THUẬT TOÁN GỘP SĐT ===
-        df_grouping = df_hien_thi.copy().reset_index(drop=True)
-        
-        # Đổi ✅ thành số 1 để đem đi cộng
-        for p in COLS_SAN_PHAM:
-            df_grouping[p] = df_grouping[p].astype(str).apply(lambda x: 1 if "✅" in x else 0)
-            
-        def parse_money(m):
-            digits = re.sub(r'[^\d]', '', str(m))
-            return int(digits) if digits else 0
-        
-        if 'Số tiền' in df_grouping.columns:
-            df_grouping['Số tiền'] = df_grouping['Số tiền'].apply(parse_money)
-        else:
-            df_grouping['Số tiền'] = 0
-            
-        # Gom nhóm
-        agg_dict = {COL_TEN: 'first', COL_DIA_CHI: 'first', 'Số tiền': 'sum'}
-        for p in COLS_SAN_PHAM: agg_dict[p] = 'sum'
-        if 'Phiên lấy hàng' in df_grouping.columns: agg_dict['Phiên lấy hàng'] = 'first'
-        
-        df_grouped = df_grouping.groupby(COL_SDT, as_index=False).agg(agg_dict)
-        
-        # Sinh tên sản phẩm mới và tổng SL
-        def tao_sp_gom(row):
-            sp_list = []
-            for p in COLS_SAN_PHAM:
-                if row[p] > 0: sp_list.append(f"{p} (x{row[p]})")
-            return ", ".join(sp_list)
-            
-        df_grouped['Tên SP Gộp'] = df_grouped.apply(tao_sp_gom, axis=1)
-        df_grouped['Tổng SL'] = df_grouped.apply(lambda r: sum([r[p] for p in COLS_SAN_PHAM]), axis=1)
-
-        # Ráp vào df_export
         df_export = pd.DataFrame()
         if "GHTK" in dvvc_choice:
             prefix = "GHTK"
@@ -225,7 +224,7 @@ try:
             df_export['Số lượng'] = df_grouped['Tổng SL']
             df_export['KL (kg) KT (cm)'] = "5 x 5 x1 | 0.1"
             df_export['Giá trị hàng'] = df_grouped['Số tiền']
-            df_export['Tiền CoD'] = ""
+            df_export['Tiền CoD'] = 0
             df_export['Dịch vụ gia tăng'] = ""
             df_export['Hình thức lấy hàng'] = ""
             df_export['Phiên lấy hàng'] = df_grouped.get('Phiên lấy hàng', '')
@@ -276,11 +275,10 @@ try:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     
+    # ================= 4. XUẤT LABEL GỘP ĐƠN =================
     st.subheader("4. 🖨️ Xuất File In Label (Dán Decal)")
-    COL_MVD = 'Mã vận đơn'
-    if COL_MVD not in df_hien_thi.columns: df_hien_thi[COL_MVD] = ""
 
-    if st.button("Tạo File In Label (Bản gốc)"):
+    if st.button("Tạo File In Label (Đã Gộp Đơn)"):
         html_content = """
         <html><head><meta charset="utf-8">
         <style>
@@ -293,20 +291,25 @@ try:
             .products { font-size: 10px; }
         </style></head><body><div class="grid-container">
         """
-        for index, row in df_hien_thi.iterrows():
+        
+        # In Label dựa trên Data Đã Gộp (df_grouped)
+        for index, row in df_grouped.iterrows():
             ten = row.get(COL_TEN, '')
             sdt = str(row.get(COL_SDT, '')).replace('.0', '')
             diachi = row.get(COL_DIA_CHI, '')
             mvd = row.get(COL_MVD, '')
             
-            has_p1 = "✅" in str(row.get(COLS_SAN_PHAM[0], ''))
-            b1 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>BD Trịnh Thăng Bình</b>" if has_p1 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
-            has_p2 = "✅" in str(row.get(COLS_SAN_PHAM[1], ''))
-            b2 = "<span style='color: navy;'>✔</span> <b style='color: navy;'>TW Trịnh Thăng Bình</b>" if has_p2 else "▢ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
-            has_p3 = "✅" in str(row.get(COLS_SAN_PHAM[2], ''))
-            b3 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>BD Đinh Mạnh Ninh</b>" if has_p3 else "▢ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
-            has_p4 = "✅" in str(row.get(COLS_SAN_PHAM[3], ''))
-            b4 = "<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>TW Đinh Mạnh Ninh</b>" if has_p4 else "▢ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
+            c_p1 = row.get(COLS_SAN_PHAM[0], 0)
+            b1 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p1} BD Trịnh Thăng Bình</b>" if c_p1 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
+            
+            c_p2 = row.get(COLS_SAN_PHAM[1], 0)
+            b2 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p2} TW Trịnh Thăng Bình</b>" if c_p2 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
+            
+            c_p3 = row.get(COLS_SAN_PHAM[2], 0)
+            b3 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p3} BD Đinh Mạnh Ninh</b>" if c_p3 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
+            
+            c_p4 = row.get(COLS_SAN_PHAM[3], 0)
+            b4 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p4} TW Đinh Mạnh Ninh</b>" if c_p4 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
 
             html_content += f"""
             <div class="label-box">
@@ -320,6 +323,8 @@ try:
             </div>
             """
         html_content += "</div></body></html>"
+        
+        st.success(f"Đã tạo Label thành công cho {len(df_grouped)} đơn (sau khi gộp)!")
         st.download_button(label="📥 TẢI FILE IN LABLE (.html)", data=html_content, file_name="Label_Giao_Hang.html", mime="text/html")
 
 except Exception as e:
