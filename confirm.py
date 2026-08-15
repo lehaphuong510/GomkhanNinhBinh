@@ -213,7 +213,8 @@ with tab1:
             st.info("📍 Phương thức nhận hàng hiện tại: **Ship về nhà**")
 
         if not is_locked:
-            is_correct = st.checkbox("Thông tin giao hàng bên dưới đã chính xác.", value=True)
+            # Gán key theo SĐT để mỗi lần tra cứu luôn reset về mặc định ĐÃ TICK SẴN
+            is_correct = st.checkbox("Thông tin giao hàng bên dưới đã chính xác.", value=True, key=f"chk_correct_{clean_input}")
             st.markdown("<div style='font-size: 13px; font-style: italic; color: #555; margin-top: -10px; margin-bottom: 15px;'>*Trong trường hợp bạn muốn cập nhật, bạn bỏ dấu tick phía đầu nha, và nếu địa chỉ của bạn chưa phải là địa chỉ sau sáp nhập, bạn cũng cập nhật lại giúp mình nha.</div>", unsafe_allow_html=True)
         else:
             is_correct = True
