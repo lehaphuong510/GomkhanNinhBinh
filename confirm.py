@@ -67,6 +67,23 @@ def set_form_lock(locked):
     else:
         if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
+# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI (Fix lỗi Checkbox 0/1 và Lỗi TypeError)
+def clean_df_for_gsheets(df):
+    cols_to_ensure = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn']
+    for c in cols_to_ensure:
+        if c not in df.columns: df[c] = ""
+        df[c] = df[c].astype(object)
+    
+    if 'Bạn muốn nhận hàng như thế nào?' in df.columns:
+        df['Bạn muốn nhận hàng như thế nào?'] = df['Bạn muốn nhận hàng như thế nào?'].astype(object)
+
+    # Chuyển các cột Hộp kiểm bị biến thành 1/0 về dạng Boolean chuẩn
+    checkbox_cols = ['Zalo', 'Bao đã nhận tiền', 'Đăng ký thành công', 'Đã hoàn']
+    for col in checkbox_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(lambda x: True if str(x).strip() in ['1', '1.0', 'TRUE', 'True'] else (False if str(x).strip() in ['0', '0.0', 'FALSE', 'False'] else x))
+    return df
+
 @st.cache_data(ttl=60)
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
@@ -124,16 +141,28 @@ with tab1:
         valid_nicks = nicknames[nicknames.str.strip() != '']
         nickname = valid_nicks.iloc[0].strip() if len(valid_nicks) > 0 else "BẠN"
         
-        original_phone = row_data.get('SDT full', '')
-        original_address = row_data.get('Địa chỉ', '')
+        # LẤY THÔNG TIN GỐC
+        original_phone = str(row_data.get('SDT full', '')).replace('.0','')
+        original_address = str(row_data.get('Địa chỉ', ''))
         noi_nhan_goc = str(row_data.get('Nơi nhận', '')).strip().upper()
         
         tt_xacnhan = str(row_data.get('Trạng thái xác nhận', '')).strip()
-        chk_sdt = str(row_data.get('Checked SDT', '')).strip()
+        chk_sdt = str(row_data.get('Checked SDT', '')).strip().replace("'", "") # Gọt bỏ nháy đơn nếu có
         chk_dc = str(row_data.get('Checked Địa chỉ', '')).strip()
         
         has_update = (chk_sdt not in ['', 'nan', 'None']) or (chk_dc not in ['', 'nan', 'None'])
         
+        # NẾU ĐÃ XÁC NHẬN -> ƯU TIÊN LẤY DỮ LIỆU ĐÃ CẬP NHẬT ĐỂ HIỂN THỊ
+        if tt_xacnhan == "Đã xác nhận":
+            if chk_sdt not in ['', 'nan', 'None']:
+                original_phone = chk_sdt
+            if chk_dc not in ['', 'nan', 'None']:
+                original_address = chk_dc
+            
+            # Nếu fan nhận Sự Kiện nhưng đã cập nhật đổi thành Ship
+            if str(row_data.get('Bạn muốn nhận hàng như thế nào?', '')).strip() == "Ship về nhà":
+                noi_nhan_goc = "SHIP"
+                
         # LỜI CHÀO 
         if tt_xacnhan == "Đã xác nhận":
             if has_update:
@@ -196,7 +225,6 @@ with tab1:
             st.markdown("<div style='color: #E74C3C; font-size: 14px; font-weight: bold; margin-bottom: 5px;'>⚠️ CHỈ CẦN ĐIỀN VÀO Ô NÀO CẦN CẬP NHẬT. Ô nào giữ nguyên thì CỨ BỎ TRỐNG nhé!</div>", unsafe_allow_html=True)
             final_phone_input = st.text_input("SĐT Cập Nhật:", placeholder=f"Hiện tại: {original_phone}")
             
-            # Gợi ý Text Area
             if is_event: holder_add = "Nhập địa chỉ nhà của bạn để tụi mình Ship"
             else: holder_add = f"Hiện tại: {original_address}"
             final_address_input = st.text_area("Địa chỉ Cập Nhật:", placeholder=holder_add)
@@ -211,6 +239,8 @@ with tab1:
 
         # 3. THÔNG TIN HOÀN TIỀN
         final_bank, final_stk, final_chu = "", "", ""
+        stk_goc = str(row_data.get('STK', '')).replace('nan','').replace("'", "") # Gọt bỏ nháy đơn
+        
         if refund_amount > 0:
             st.markdown("<div class='section-title'>💸 THÔNG TIN HOÀN TIỀN</div>", unsafe_allow_html=True)
             st.info(f"🎁 Do giá Bandana giảm, bạn được hoàn lại số tiền là: **{refund_amount:,.0f} VNĐ**.")
@@ -219,10 +249,10 @@ with tab1:
                 st.write("Vui lòng điền thông tin để tụi mình chuyển khoản nhé:")
                 col_b1, col_b2 = st.columns(2)
                 final_bank = col_b1.text_input("Ngân hàng nhận tiền:", value=str(row_data.get('Ngân hàng', '')).replace('nan',''))
-                final_stk = col_b2.text_input("Số tài khoản:", value=str(row_data.get('STK', '')).replace('nan',''))
+                final_stk = col_b2.text_input("Số tài khoản:", value=stk_goc)
                 final_chu = st.text_input("Tên chủ tài khoản:", value=str(row_data.get('Chủ TK', '')).replace('nan',''))
             else:
-                st.markdown(f"<div class='info-box'><b>Ngân hàng:</b> {row_data.get('Ngân hàng', '')}<br><b>STK:</b> {row_data.get('STK', '')}<br><b>Chủ TK:</b> {row_data.get('Chủ TK', '')}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-box'><b>Ngân hàng:</b> {row_data.get('Ngân hàng', '')}<br><b>STK:</b> {stk_goc}<br><b>Chủ TK:</b> {row_data.get('Chủ TK', '')}</div>", unsafe_allow_html=True)
                 
         # 4. LƯU Ý
         st.markdown("<div class='section-title'>📝 LƯU Ý THÊM</div>", unsafe_allow_html=True)
@@ -234,7 +264,6 @@ with tab1:
         # NÚT CHỐT ĐƠN
         if not is_locked:
             if st.button("🚀 XÁC NHẬN / CẬP NHẬT THÔNG TIN", type="primary"):
-                # CHỐT CHẶN: Bỏ tick nhưng không điền gì
                 if not is_correct and final_phone_input.strip() == "" and final_address_input.strip() == "":
                     st.warning("⚠️ Bạn quên chưa tick xác nhận thông tin giao hàng hoặc chưa điền thông tin cập nhật rồi. Bạn vui lòng tick hoặc điền thông tin mới nếu cần cập nhật nha.")
                 else:
@@ -243,33 +272,29 @@ with tab1:
                         df_form = conn.read(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1")
                         df_form.columns = df_form.columns.str.strip()
                         
-                        # 1. ÉP KIỂU OBJECT ĐỂ CHỐNG LỖI TypeError CỦA PANDAS
-                        cols_to_add = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn']
-                        for c in cols_to_add:
-                            if c not in df_form.columns: df_form[c] = ""
-                            df_form[c] = df_form[c].astype(object) 
-                            
-                        if 'Bạn muốn nhận hàng như thế nào?' in df_form.columns:
-                            df_form['Bạn muốn nhận hàng như thế nào?'] = df_form['Bạn muốn nhận hàng như thế nào?'].astype(object)
+                        # Gọi hàm tẩy trần dọn rác Pandas
+                        df_form = clean_df_for_gsheets(df_form)
                         
-                        # Lấy index từ Data App
                         idx_list = user_orders.index
                         
                         if len(idx_list) > 0:
                             for idx in idx_list:
                                 if is_event and not is_correct:
                                     df_form.at[idx, 'Bạn muốn nhận hàng như thế nào?'] = "Ship về nhà"
+                                
+                                # Chèn nháy đơn bảo toàn số 0    
+                                sdt_to_save = f"'{final_phone}" if final_phone.strip() != "" else ""
+                                stk_to_save = f"'{final_stk}" if final_stk.strip() != "" else ""
                                     
-                                df_form.at[idx, 'Checked SDT'] = final_phone
+                                df_form.at[idx, 'Checked SDT'] = sdt_to_save
                                 df_form.at[idx, 'Checked Địa chỉ'] = final_address
                                 df_form.at[idx, 'Ngân hàng'] = final_bank
-                                df_form.at[idx, 'STK'] = final_stk
+                                df_form.at[idx, 'STK'] = stk_to_save
                                 df_form.at[idx, 'Chủ TK'] = final_chu
                                 df_form.at[idx, 'Lưu ý'] = final_note
                                 df_form.at[idx, 'Trạng thái xác nhận'] = "Đã xác nhận"
                                 
                             conn.update(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1", data=df_form)
-                            
                             st.cache_data.clear() 
                             st.success("✅ ĐÃ GHI NHẬN LÊN HỆ THỐNG! Cảm ơn bạn rất nhiều 💖")
                             st.balloons()
@@ -320,10 +345,13 @@ with tab2:
             
             if tien_hoan > 0:
                 bank = str(row.get('Ngân hàng', '')).replace('nan','').strip()
-                stk = str(row.get('STK', '')).replace('nan','').strip()
+                stk = str(row.get('STK', '')).replace('nan','').replace("'", "").strip() # Lột vỏ nháy đơn
                 chu = str(row.get('Chủ TK', '')).replace('nan','').strip()
                 status = "✅ Đã điền" if bank and stk else "⏳ Chưa điền"
-                is_done = True if str(row.get('Đã hoàn', '')).upper() == 'TRUE' else False
+                
+                # Bắt chuẩn trạng thái Đã hoàn
+                da_hoan_val = str(row.get('Đã hoàn', '')).strip().upper()
+                is_done = True if da_hoan_val in ['TRUE', '1', '1.0'] else False
                 
                 refund_list.append({
                     "Index": index, 
@@ -341,13 +369,12 @@ with tab2:
         df_refund = pd.DataFrame(refund_list)
         
         if not df_refund.empty:
-            # BỘ LỌC (Mặc định không chọn = Show Full)
+            # BỘ LỌC
             col_f1, col_f2 = st.columns(2)
             unique_tien = df_refund['Số tiền hoàn'].unique().tolist()
             loc_tien = col_f1.multiselect("Lọc theo Số tiền hoàn:", unique_tien, default=[])
             loc_trangthai = col_f2.multiselect("Lọc theo Trạng thái điền form:", ["✅ Đã điền", "⏳ Chưa điền"], default=[])
             
-            # Logic Lọc
             if len(loc_tien) == 0 and len(loc_trangthai) == 0: df_filtered = df_refund.copy()
             elif len(loc_tien) == 0: df_filtered = df_refund[df_refund['Trạng thái STK'].isin(loc_trangthai)]
             elif len(loc_trangthai) == 0: df_filtered = df_refund[df_refund['Số tiền hoàn'].isin(loc_tien)]
@@ -367,17 +394,20 @@ with tab2:
                 use_container_width=True
             )
             
-            if st.button("LƯU TRẠNG THÁI HOÀN TIỀN LÊN GOOGLE SHEET"):
+            if st.button("LƯU TRẠNG THÁI HOÀN TIỀN LÊN GOOGLE SHEET", type="primary"):
                 with st.spinner("Đang cập nhật lên Sheet..."):
                     conn = st.connection("gsheets", type=GSheetsConnection)
                     df_form = conn.read(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1")
                     df_form.columns = df_form.columns.str.strip()
-                    if 'Đã hoàn' not in df_form.columns: df_form['Đã hoàn'] = ""
+                    
+                    # Gọi hàm tẩy trần dọn rác Pandas
+                    df_form = clean_df_for_gsheets(df_form)
                     
                     for i in range(len(edited_df)):
                         origin_idx = df_filtered.iloc[i]['Index']
                         new_val = edited_df.iloc[i]['Đã hoàn']
-                        df_form.at[origin_idx, 'Đã hoàn'] = "TRUE" if new_val else "FALSE"
+                        # Gán thẳng True/False để GG Sheet hiện đúng hộp kiểm
+                        df_form.at[origin_idx, 'Đã hoàn'] = bool(new_val)
                         
                     conn.update(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1", data=df_form)
                     st.cache_data.clear()
@@ -387,7 +417,8 @@ with tab2:
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df_dl = df_filtered.drop(columns=['Index']).copy()
-                df_dl['SĐT'] = df_dl['SĐT'].apply(lambda x: f"'{x}") # Chèn dấu nháy giữ số 0
+                df_dl['SĐT'] = df_dl['SĐT'].apply(lambda x: f"'{x}") 
+                df_dl['STK'] = df_dl['STK'].apply(lambda x: f"'{x}" if str(x).strip() != "" else "") 
                 df_dl.to_excel(writer, index=False, sheet_name='HoanTien')
             excel_data = output.getvalue()
             
@@ -420,7 +451,6 @@ with tab2:
         for p in products_table: tab3_html += f"<th>{p}</th>"
         tab3_html += "</tr></thead><tbody>"
         for i in range(3):
-            # CẬP NHẬT: Nhúng style đổi màu trực tiếp vào <td> để đè lên nền trắng mặc định!
             is_ev = "Sự kiện" in table_data['Phân loại'][i]
             td_style = "background-color: #FFF3CD !important; color: #856404 !important; font-weight: bold;" if is_ev else ""
             
