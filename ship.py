@@ -9,7 +9,7 @@ st.set_page_config(page_title="App Nội Bộ - Lọc Tỉnh Thành", layout="wi
 st.title("📦 HỆ THỐNG LỌC ĐỊA CHỈ SHIP - NỘI BỘ")
 
 # Nút Refresh
-col_rf1, col_rf2, col_rf3 = st.columns([1,2,1])
+col_rf1, col_rf2, col_rf3 = st.columns([1, 2, 1])
 with col_rf2:
     if st.button("🔄 Cập nhật dữ liệu mới nhất từ Biểu Mẫu"):
         st.cache_data.clear()
@@ -59,6 +59,7 @@ DICT_TINH = {
     "Tiền Giang": ["tiền giang", "mỹ tho"], "Trà Vinh": ["trà vinh"], "Tuyên Quang": ["tuyên quang"], 
     "Vĩnh Long": ["vĩnh long"], "Vĩnh Phúc": ["vĩnh phúc"], "Yên Bái": ["yên bái"]
 }
+
 DICT_MIEN = {
     "Miền Bắc": ["Hà Nội", "Hải Phòng", "Quảng Ninh", "Vĩnh Phúc", "Bắc Ninh", "Hải Dương", "Hưng Yên", "Hà Nam", "Nam Định", "Thái Bình", "Ninh Bình", "Hà Giang", "Cao Bằng", "Bắc Kạn", "Tuyên Quang", "Thái Nguyên", "Lạng Sơn", "Bắc Giang", "Phú Thọ", "Điện Biên", "Lai Châu", "Sơn La", "Hòa Bình", "Yên Bái", "Lào Cai"],
     "Miền Trung": ["Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế", "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa", "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"],
@@ -66,16 +67,19 @@ DICT_MIEN = {
 }
 
 def quet_tinh_thanh(dia_chi):
-    if pd.isna(dia_chi) or dia_chi == "": return "Chưa rõ"
+    if pd.isna(dia_chi) or str(dia_chi).strip() in ["", "nan", "None"]:
+        return "Chưa rõ"
     dia_chi_lower = str(dia_chi).lower()
     for tinh, tu_khoa_list in DICT_TINH.items():
         for tu_khoa in tu_khoa_list:
-            if re.search(rf"\b{tu_khoa}\b", dia_chi_lower): return tinh
+            if re.search(rf"\b{tu_khoa}\b", dia_chi_lower): 
+                return tinh
     return "Tỉnh khác (Cần check tay)"
 
 def xac_dinh_mien(tinh):
     for mien, danh_sach in DICT_MIEN.items():
-        if tinh in danh_sach: return mien
+        if tinh in danh_sach: 
+            return mien
     return "Khác"
 
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit?usp=sharing"
@@ -88,9 +92,11 @@ def load_data():
     
     if 'SDT full' in df.columns:
         def fix_sdt(x):
-            s = str(x).replace('.0', '').strip()
-            if s.lower() in ['nan', 'none', '']: return ""
-            if s.isdigit() and not s.startswith('0'): return '0' + s
+            s = str(x).replace('.0', '').replace("'", "").strip()
+            if s.lower() in ['nan', 'none', '']: 
+                return ""
+            if s.isdigit() and not s.startswith('0'): 
+                return '0' + s
             return s
         df['SDT full'] = df['SDT full'].apply(fix_sdt)
         
@@ -102,14 +108,18 @@ try:
     df_raw = load_data()
     df_chot_don = df_raw[df_raw[COL_TRANG_THAI].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)].copy()
     
+    # 1. Quét đơn Ship (Bao gồm cả những bạn sự kiện đổi sang ship)
     if COL_NOI_NHAN in df_chot_don.columns:
         df_chot_don = df_chot_don[df_chot_don[COL_NOI_NHAN].astype(str).str.upper().str.contains('SHIP', na=False)]
         
-    # === ƯU TIÊN LẤY DỮ LIỆU ĐÃ CONFIRM ===
+    # 2. Ưu tiên lấy dữ liệu đã Confirm (Checked)
     if 'Checked SDT' in df_chot_don.columns:
-        df_chot_don['SDT full'] = df_chot_don['Checked SDT'].replace('', pd.NA).replace('nan', pd.NA).fillna(df_chot_don['SDT full'])
+        df_chot_don['Checked SDT'] = df_chot_don['Checked SDT'].astype(str).str.replace("'", "").str.strip()
+        df_chot_don['SDT full'] = df_chot_don['Checked SDT'].replace(['', 'nan', 'None'], pd.NA).fillna(df_chot_don['SDT full'])
+        
     if 'Checked Địa chỉ' in df_chot_don.columns:
-        df_chot_don['Địa chỉ'] = df_chot_don['Checked Địa chỉ'].replace('', pd.NA).replace('nan', pd.NA).fillna(df_chot_don['Địa chỉ'])
+        df_chot_don['Checked Địa chỉ'] = df_chot_don['Checked Địa chỉ'].astype(str).str.strip()
+        df_chot_don['Địa chỉ'] = df_chot_don['Checked Địa chỉ'].replace(['', 'nan', 'None'], pd.NA).fillna(df_chot_don['Địa chỉ'])
         
     if COL_DIA_CHI in df_chot_don.columns:
         df_chot_don['Tỉnh Thành'] = df_chot_don[COL_DIA_CHI].apply(quet_tinh_thanh)
@@ -141,12 +151,14 @@ try:
             
     df_tong_hop = df_tong_hop.fillna(0)
     for col in df_tong_hop.columns:
-        if col != 'Tỉnh Thành': df_tong_hop[col] = df_tong_hop[col].astype(int)
+        if col != 'Tỉnh Thành': 
+            df_tong_hop[col] = df_tong_hop[col].astype(int)
 
     if not df_tong_hop.empty:
         tong_dict = {'Tỉnh Thành': '🌟 TỔNG CỘNG'}
         for col in df_tong_hop.columns:
-            if col != 'Tỉnh Thành': tong_dict[col] = df_tong_hop[col].sum()
+            if col != 'Tỉnh Thành': 
+                tong_dict[col] = df_tong_hop[col].sum()
         df_tong_hop = pd.concat([pd.DataFrame([tong_dict]), df_tong_hop], ignore_index=True)
 
     def to_mau_dong_tong(row):
@@ -168,7 +180,8 @@ try:
         df_hien_thi = df_loc_mien[df_loc_mien['Tỉnh Thành'].isin(tinh_duoc_chon)]
         
     cot_can_xem = [COL_TEN, COL_SDT, COL_DIA_CHI] + COLS_SAN_PHAM
-    if 'Lưu ý' in df_hien_thi.columns: cot_can_xem.append('Lưu ý')
+    if 'Lưu ý' in df_hien_thi.columns: 
+        cot_can_xem.append('Lưu ý')
     
     cot_thuc_te = [col for col in cot_can_xem if col in df_hien_thi.columns]
     st.dataframe(df_hien_thi[cot_thuc_te], use_container_width=True, hide_index=True)
@@ -177,9 +190,11 @@ try:
     # === THUẬT TOÁN GỘP ĐƠN CHUNG CHO EXCEL VÀ LABEL ===
     df_grouping = df_hien_thi.copy().reset_index(drop=True)
     
-    # Đổi ✅ thành 1
     for p in COLS_SAN_PHAM:
-        df_grouping[p] = df_grouping[p].astype(str).apply(lambda x: 1 if "✅" in x else 0)
+        if p in df_grouping.columns:
+            df_grouping[p] = df_grouping[p].astype(str).apply(lambda x: 1 if "✅" in str(x) else 0)
+        else:
+            df_grouping[p] = 0
         
     def parse_money(m):
         digits = re.sub(r'[^\d]', '', str(m))
@@ -191,18 +206,22 @@ try:
         df_grouping['Số tiền'] = 0
         
     COL_MVD = 'Mã vận đơn'
-    if COL_MVD not in df_grouping.columns: df_grouping[COL_MVD] = ""
+    if COL_MVD not in df_grouping.columns: 
+        df_grouping[COL_MVD] = ""
 
     agg_dict = {COL_TEN: 'first', COL_DIA_CHI: 'first', 'Số tiền': 'sum', COL_MVD: 'first'}
-    for p in COLS_SAN_PHAM: agg_dict[p] = 'sum'
-    if 'Phiên lấy hàng' in df_grouping.columns: agg_dict['Phiên lấy hàng'] = 'first'
+    for p in COLS_SAN_PHAM: 
+        agg_dict[p] = 'sum'
+    if 'Phiên lấy hàng' in df_grouping.columns: 
+        agg_dict['Phiên lấy hàng'] = 'first'
     
     df_grouped = df_grouping.groupby(COL_SDT, as_index=False).agg(agg_dict)
     
     def tao_sp_gom(row):
         sp_list = []
         for p in COLS_SAN_PHAM:
-            if row[p] > 0: sp_list.append(f"{p} (x{row[p]})")
+            if row[p] > 0: 
+                sp_list.append(f"{p} (x{row[p]})")
         return ", ".join(sp_list)
         
     df_grouped['Tên SP Gộp'] = df_grouped.apply(tao_sp_gom, axis=1)
@@ -292,24 +311,23 @@ try:
         </style></head><body><div class="grid-container">
         """
         
-        # In Label dựa trên Data Đã Gộp (df_grouped)
         for index, row in df_grouped.iterrows():
-            ten = row.get(COL_TEN, '')
-            sdt = str(row.get(COL_SDT, '')).replace('.0', '')
-            diachi = row.get(COL_DIA_CHI, '')
-            mvd = row.get(COL_MVD, '')
+            ten = str(row.get(COL_TEN, '')).replace('nan', '')
+            sdt = str(row.get(COL_SDT, '')).replace('.0', '').replace("'", "")
+            diachi = str(row.get(COL_DIA_CHI, '')).replace('nan', '')
+            mvd = str(row.get(COL_MVD, '')).replace('nan', '')
             
             c_p1 = row.get(COLS_SAN_PHAM[0], 0)
-            b1 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p1} BD Trịnh Thăng Bình</b>" if c_p1 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
+            b1 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p1}x BD Trịnh Thăng Bình</b>" if c_p1 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
             
             c_p2 = row.get(COLS_SAN_PHAM[1], 0)
-            b2 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p2} TW Trịnh Thăng Bình</b>" if c_p2 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
+            b2 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p2}x TW Trịnh Thăng Bình</b>" if c_p2 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
             
             c_p3 = row.get(COLS_SAN_PHAM[2], 0)
-            b3 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p3} BD Đinh Mạnh Ninh</b>" if c_p3 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
+            b3 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p3}x BD Đinh Mạnh Ninh</b>" if c_p3 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
             
             c_p4 = row.get(COLS_SAN_PHAM[3], 0)
-            b4 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p4} TW Đinh Mạnh Ninh</b>" if c_p4 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
+            b4 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p4}x TW Đinh Mạnh Ninh</b>" if c_p4 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
 
             html_content += f"""
             <div class="label-box">
