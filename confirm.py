@@ -67,10 +67,9 @@ def set_form_lock(locked):
     else:
         if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
-# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI (Fix lỗi Checkbox 0/1 và Lỗi TypeError)
-# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI (Fix lỗi Checkbox 0/1 và Khôi phục số 0)
+# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI
 def clean_df_for_gsheets(df):
-    cols_to_ensure = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn']
+    cols_to_ensure = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn', 'Đã giao']
     for c in cols_to_ensure:
         if c not in df.columns: df[c] = ""
         df[c] = df[c].astype(object)
@@ -79,7 +78,7 @@ def clean_df_for_gsheets(df):
         df['Bạn muốn nhận hàng như thế nào?'] = df['Bạn muốn nhận hàng như thế nào?'].astype(object)
 
     # 1. Chuyển các cột Hộp kiểm bị biến thành 1/0 về dạng Boolean chuẩn
-    checkbox_cols = ['Zalo', 'Bao đã nhận tiền', 'Đăng ký thành công', 'Đã hoàn']
+    checkbox_cols = ['Zalo', 'Bao đã nhận tiền', 'Đăng ký thành công', 'Đã hoàn', 'Đã giao']
     for col in checkbox_cols:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: True if str(x).strip() in ['1', '1.0', 'TRUE', 'True'] else (False if str(x).strip() in ['0', '0.0', 'FALSE', 'False'] else x))
@@ -88,18 +87,16 @@ def clean_df_for_gsheets(df):
     def restore_phone_zero(x):
         s = str(x).replace('.0', '').replace("'", "").strip()
         if s.lower() in ['nan', 'none', '']: return ""
-        # Nếu là toàn số mà mất số 0 ở đầu thì nhả số 0 ra lại
         s_clean = s.replace(" ", "").replace(".", "")
         if s_clean.isdigit() and not s.startswith('0'): 
             s = '0' + s
-        return s # Chèn nháy đơn để vĩnh viễn GG Sheet ko nuốt số 0 nữa
+        return s 
         
     def protect_stk(x):
         s = str(x).replace('.0', '').replace("'", "").strip()
         if s.lower() in ['nan', 'none', '']: return ""
-        return s # STK ko tự thêm 0 vì có ngân hàng ko bắt đầu bằng 0
+        return s 
         
-    # Quét tát cả các cột, hễ thấy SĐT hoặc STK là áp dụng khiên bảo vệ
     for col in df.columns:
         col_upper = col.upper()
         if 'SDT' in col_upper or 'ĐIỆN THOẠI' in col_upper:
@@ -126,29 +123,27 @@ def load_data():
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
 
-    # Đọc thêm tab Data_DVVC để lấy link tra cứu
     dvvc_dict = {}
     try:
         df_dvvc = conn.read(spreadsheet=url, worksheet="Data_DVVC")
         df_dvvc.columns = df_dvvc.columns.str.strip()
-        df_dvvc = df_dvvc.dropna(subset=['DVVC']) # Bỏ qua dòng rỗng
+        df_dvvc = df_dvvc.dropna(subset=['DVVC'])
         dvvc_dict = dict(zip(df_dvvc['DVVC'].astype(str).str.strip(), df_dvvc['Link tra cứu'].astype(str).str.strip()))
     except Exception as e:
-        pass # Nếu Sheet chưa kịp tạo thì cứ pass nhẹ nhàng, ko làm sập app
+        pass 
         
     return df, dvvc_dict
     
 
 try:
     df_raw, dvvc_dict = load_data()
-    # Lấy các đơn ĐÃ CHỐT ĐƠN
     df_chot = df_raw[df_raw['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)].copy()
 except Exception as e:
     st.error("Đang có lỗi kết nối dữ liệu. Vui lòng thử lại sau!")
     st.stop()
     
 
-tab1, tab2 = st.tabs(["🔍 XÁC NHẬN ĐƠN HÀNG", "🔒 ADMIN"])
+tab1, tab2, tab3 = st.tabs(["🔍 XÁC NHẬN ĐƠN HÀNG", "🔒 ADMIN", "🎁 GIAO SỰ KIỆN"])
 
 # ================= TAB 1: USER CONFIRM =================
 with tab1:
@@ -185,7 +180,7 @@ with tab1:
         noi_nhan_goc = str(row_data.get('Nơi nhận', '')).strip().upper()
         
         tt_xacnhan = str(row_data.get('Trạng thái xác nhận', '')).strip()
-        chk_sdt = str(row_data.get('Checked SDT', '')).strip().replace("'", "") # Gọt bỏ nháy đơn nếu có
+        chk_sdt = str(row_data.get('Checked SDT', '')).strip().replace("'", "")
         chk_dc = str(row_data.get('Checked Địa chỉ', '')).strip()
         
         has_update = (chk_sdt not in ['', 'nan', 'None']) or (chk_dc not in ['', 'nan', 'None'])
@@ -197,7 +192,6 @@ with tab1:
             if chk_dc not in ['', 'nan', 'None']:
                 original_address = chk_dc
             
-            # Nếu fan nhận Sự Kiện nhưng đã cập nhật đổi thành Ship
             if str(row_data.get('Bạn muốn nhận hàng như thế nào?', '')).strip() == "Ship về nhà":
                 noi_nhan_goc = "SHIP"
                 
@@ -210,14 +204,13 @@ with tab1:
         else:
             st.info(f"👋 Chào {nickname.upper()} ơi, bạn kiểm tra lại thông tin đơn hàng của mình lần cuối nha!")
 
-        # 0. THÔNG TIN VẬN CHUYỂN (Nằm trên Thông tin sản phẩm)
+        # 0. THÔNG TIN VẬN CHUYỂN
         st.markdown("<div class='section-title'>🚚 THÔNG TIN VẬN CHUYỂN</div>", unsafe_allow_html=True)
         
         mvd = str(row_data.get('Mã vận đơn', '')).replace('nan', '').strip()
         dvvc = str(row_data.get('DVVC', '')).replace('nan', '').strip()
         phien = str(row_data.get('Phiên lấy hàng', '')).replace('nan', '').strip()
         
-        # Check xem có phải nhận sự kiện không (Đã update nếu Fan đổi từ Sự kiện sang Ship)
         is_event_delivery = "LOVE" in noi_nhan_goc or "SỰ KIỆN" in noi_nhan_goc or "HÀ NỘI" in noi_nhan_goc
         
         if mvd == "":
@@ -225,13 +218,11 @@ with tab1:
         else:
             link_tra_cuu = dvvc_dict.get(dvvc, "")
             
-            # Khai báo HTML trên từng dòng thẳng tắp để chống lỗi Markdown Code Block
             html_ship = f"<div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430;'>"
             html_ship += f"<div style='margin-bottom: 8px;'><b>Mã vận đơn:</b> <span style='color: #E74C3C; font-weight: bold; font-size: 16px;'>{mvd}</span></div>"
             html_ship += f"<div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> <span style='color: #0B192C; font-weight: bold;'>{dvvc}</span></div>"
             html_ship += f"<div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> <span style='color: #0B192C; font-weight: bold;'>{phien}</span></div>"
             
-            # Chỉ hiện Link tracking nếu có link VÀ KHÔNG PHẢI đơn sự kiện
             if link_tra_cuu != "" and not is_event_delivery:
                 html_ship += f"<div style='margin-bottom: 8px;'><b>Link để tracking:</b> <a href='{link_tra_cuu}' target='_blank' style='color: #0066CC; text-decoration: none; font-weight: bold;'>Bấm vào đây để tra cứu hành trình nha 🚀</a></div>"
                 
@@ -242,8 +233,7 @@ with tab1:
             st.markdown(html_ship, unsafe_allow_html=True)
             
             
-            
-        # 1. THÔNG TIN SẢN PHẨM (Xám mờ nếu = 0, dấu check nếu = 1)
+        # 1. THÔNG TIN SẢN PHẨM
         st.markdown("<div class='section-title'>🛒 THÔNG TIN SẢN PHẨM</div>", unsafe_allow_html=True)
         products = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
         
@@ -268,7 +258,6 @@ with tab1:
         
         refund_amount = total_bandana * 5000
 
-        # Trạng thái khóa
         is_locked = is_form_locked()
         if is_locked:
             st.error("🔒 ĐÃ HẾT THỜI GIAN CẬP NHẬT THÔNG TIN. Thông tin bên dưới là dữ liệu đã được hệ thống chốt sổ.")
@@ -276,15 +265,12 @@ with tab1:
         # 2. THÔNG TIN GIAO HÀNG
         st.markdown("<div class='section-title'>📍 THÔNG TIN GIAO HÀNG</div>", unsafe_allow_html=True)
         
-        is_event = "LOVE" in noi_nhan_goc or "SỰ KIỆN" in noi_nhan_goc or "HÀ NỘI" in noi_nhan_goc
-
         if is_event:
             st.info("📍 Phương thức nhận hàng hiện tại: **Nhận tại sự kiện Love at first sight 29/8 ở Hà Nội**")
         else:
             st.info("📍 Phương thức nhận hàng hiện tại: **Ship về nhà**")
 
         if not is_locked:
-            # Gán key theo SĐT để mỗi lần tra cứu luôn reset về mặc định ĐÃ TICK SẴN
             is_correct = st.checkbox("Thông tin giao hàng bên dưới đã chính xác.", value=True, key=f"chk_correct_{clean_input}")
             st.markdown("<div style='font-size: 13px; font-style: italic; color: #555; margin-top: -10px; margin-bottom: 15px;'>*Trong trường hợp bạn muốn cập nhật, bạn bỏ dấu tick phía đầu nha, và nếu địa chỉ của bạn chưa phải là địa chỉ sau sáp nhập, bạn cũng cập nhật lại giúp mình nha.</div>", unsafe_allow_html=True)
         else:
@@ -311,9 +297,8 @@ with tab1:
 
         # 3. THÔNG TIN HOÀN TIỀN
         final_bank, final_stk, final_chu = "", "", ""
-        stk_goc = str(row_data.get('STK', '')).replace('nan','').replace("'", "") # Gọt bỏ nháy đơn
+        stk_goc = str(row_data.get('STK', '')).replace('nan','').replace("'", "")
         
-        # Bắt trạng thái Đã hoàn tiền
         da_hoan_val = str(row_data.get('Đã hoàn', '')).strip().upper()
         is_refunded = True if da_hoan_val in ['TRUE', '1', '1.0'] else False
         
@@ -351,7 +336,6 @@ with tab1:
                         df_form = conn.read(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1")
                         df_form.columns = df_form.columns.str.strip()
                         
-                        # Gọi hàm tẩy trần dọn rác Pandas
                         df_form = clean_df_for_gsheets(df_form)
                         
                         idx_list = user_orders.index
@@ -361,7 +345,6 @@ with tab1:
                                 if is_event and not is_correct:
                                     df_form.at[idx, 'Bạn muốn nhận hàng như thế nào?'] = "Ship về nhà"
                                 
-                                # Đã ép định dạng Plain Text trên Sheet nên lưu số trực tiếp luôn
                                 sdt_to_save = final_phone.strip() if final_phone.strip() != "" else ""
                                 stk_to_save = final_stk.strip() if final_stk.strip() != "" else ""
                                     
@@ -388,7 +371,6 @@ with tab2:
     if pass_admin == ADMIN_PASSWORD:
         st.success("Đăng nhập thành công!")
         
-        # 1. KHÓA FORM
         is_locked = is_form_locked()
         toggle_lock = st.toggle("🔒 KHÓA CẬP NHẬT (Không cho Fan sửa data nữa)", value=is_locked)
         if toggle_lock != is_locked:
@@ -396,9 +378,7 @@ with tab2:
             st.rerun()
         st.divider()
 
-        # 2. CARD THỐNG KÊ XÁC NHẬN (TÍNH TẤT CẢ ĐƠN)
         total_orders = len(df_chot)
-        
         confirmed_total = 0
         updated_count = 0
         
@@ -406,10 +386,7 @@ with tab2:
             df_confirmed = df_chot[df_chot['Trạng thái xác nhận'].astype(str).str.strip() == 'Đã xác nhận']
             confirmed_total = len(df_confirmed)
             
-            
-            # Đếm số người CÓ CẬP NHẬT THÔNG TIN (Cách 2: So sánh Đối chiếu)
             def has_update(row):
-                # 1. Lấy và dọn dẹp data gốc
                 orig_sdt = str(row.get('SDT full', '')).replace('.0', '').replace("'", "").strip()
                 if orig_sdt.isdigit() and not orig_sdt.startswith('0'):
                     orig_sdt = '0' + orig_sdt
@@ -418,21 +395,16 @@ with tab2:
                 noi_goc = str(row.get('Nơi nhận', '')).strip().upper()
                 is_event_goc = "LOVE" in noi_goc or "SỰ KIỆN" in noi_goc or "HÀ NỘI" in noi_goc
 
-                # 2. Lấy và dọn dẹp data Checked
                 chk_sdt = str(row.get('Checked SDT', '')).replace("'", "").strip().replace('nan', '').replace('None', '')
                 chk_dc = str(row.get('Checked Địa chỉ', '')).strip().replace('nan', '').replace('None', '')
                 chk_noi = str(row.get('Bạn muốn nhận hàng như thế nào?', '')).strip()
 
-                # 3. Mở phiên tòa xét xử: So sánh gốc và mới
-                # TH1: Khách nhận sự kiện nhưng quyết định "quay xe" chọn Ship
                 if is_event_goc and chk_noi == 'Ship về nhà':
                     return True
                 
-                # TH2: Cột Checked SDT có dữ liệu VÀ KHÁC với SDT gốc
                 if chk_sdt != '' and chk_sdt != orig_sdt:
                     return True
                 
-                # TH3: Cột Checked Địa chỉ có dữ liệu VÀ KHÁC với Địa chỉ gốc
                 if chk_dc != '' and chk_dc != orig_dc:
                     return True
 
@@ -453,7 +425,6 @@ with tab2:
 
         st.divider()
         
-        # 3. QUẢN LÝ HOÀN TIỀN
         st.markdown("### 💸 QUẢN LÝ HOÀN TIỀN BANDANA")
         refund_list = []
         for index, row in df_chot.iterrows():
@@ -464,11 +435,10 @@ with tab2:
             
             if tien_hoan > 0:
                 bank = str(row.get('Ngân hàng', '')).replace('nan','').strip()
-                stk = str(row.get('STK', '')).replace('nan','').replace("'", "").strip() # Lột vỏ nháy đơn
+                stk = str(row.get('STK', '')).replace('nan','').replace("'", "").strip()
                 chu = str(row.get('Chủ TK', '')).replace('nan','').strip()
                 status = "✅ Đã điền" if bank and stk else "⏳ Chưa điền"
                 
-                # Bắt chuẩn trạng thái Đã hoàn
                 da_hoan_val = str(row.get('Đã hoàn', '')).strip().upper()
                 is_done = True if da_hoan_val in ['TRUE', '1', '1.0'] else False
                 
@@ -488,7 +458,6 @@ with tab2:
         df_refund = pd.DataFrame(refund_list)
         
         if not df_refund.empty:
-            # BỘ LỌC
             col_f1, col_f2 = st.columns(2)
             unique_tien = df_refund['Số tiền hoàn'].unique().tolist()
             loc_tien = col_f1.multiselect("Lọc theo Số tiền hoàn:", unique_tien, default=[])
@@ -504,7 +473,6 @@ with tab2:
             
             st.markdown("<p style='font-weight:bold; color:#0B192C;'>Check trực tiếp vào ô 'Đã hoàn' bên dưới, sau đó bấm Lưu:</p>", unsafe_allow_html=True)
             
-            # DATA EDITOR SỐNG
             edited_df = st.data_editor(
                 df_display.drop(columns=['Index']),
                 column_config={"Đã hoàn": st.column_config.CheckboxColumn("Đã hoàn", default=False)},
@@ -519,20 +487,17 @@ with tab2:
                     df_form = conn.read(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1")
                     df_form.columns = df_form.columns.str.strip()
                     
-                    # Gọi hàm tẩy trần dọn rác Pandas
                     df_form = clean_df_for_gsheets(df_form)
                     
                     for i in range(len(edited_df)):
                         origin_idx = df_filtered.iloc[i]['Index']
                         new_val = edited_df.iloc[i]['Đã hoàn']
-                        # Gán thẳng True/False để GG Sheet hiện đúng hộp kiểm
                         df_form.at[origin_idx, 'Đã hoàn'] = bool(new_val)
                         
                     conn.update(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1", data=df_form)
                     st.cache_data.clear()
                     st.success("✅ Đã lưu trạng thái hoàn tiền thành công!")
             
-            # Xuất Excel
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df_dl = df_filtered.drop(columns=['Index']).copy()
@@ -552,7 +517,6 @@ with tab2:
             
         st.divider()
         
-        # 4. TỔNG HỢP CHỐT ĐƠN (3 DÒNG)
         st.markdown("### 💰 TỔNG HỢP CHỐT ĐƠN")
         products_table = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
         table_data = {"Phân loại": ["Tổng cộng", "Nhận tại sự kiện", "Ship về nhà"]}
@@ -581,21 +545,16 @@ with tab2:
         tab3_html += "</tbody></table>"
         st.markdown(tab3_html, unsafe_allow_html=True)
 
-        # 6. TỔNG HỢP LỜI CHÚC / LƯU Ý TỪ FAN
         st.divider()
         st.markdown("### 💌 LỜI NHẮN NHỦ TỪ FAN")
 
         if 'Lưu ý' in df_chot.columns:
-            # Lọc ra những người có điền Lưu ý (khác rỗng, nan, None)
             df_notes = df_chot[df_chot['Lưu ý'].astype(str).str.strip().replace(['nan', 'None', ''], pd.NA).notna()]
-            
-            # Bỏ qua những bạn chỉ nhập khoảng trắng
             df_notes = df_notes[df_notes['Lưu ý'].astype(str).str.strip() != '']
             
             if not df_notes.empty:
                 st.write(f"🥰 Đang có **{len(df_notes)}** lời nhắn siêu dễ thương từ các bạn Fan nè:")
                 
-                # Chia làm 2 cột cho đẹp và đỡ bị dài trang
                 cols = st.columns(2)
                 
                 for idx, row in enumerate(df_notes.iterrows()):
@@ -605,23 +564,151 @@ with tab2:
                     name = str(row_data.get('Nickname', '')).replace('nan', '').strip()
                     if name == "": name = "Fan Giấu Tên"
                     
-                    # HTML template cho 1 card lời nhắn (màu vàng nhạt, viền vàng đậm)
-                    card_html = f"""
-                    <div style="background-color: #FFF9E6; border-left: 5px solid #F4C430; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                        <div style="font-size: 13px; font-weight: bold; color: #0B192C; margin-bottom: 8px;">
-                            👤 {name} <span style="color: #666; font-weight: normal;">({sdt})</span>
-                        </div>
-                        <div style="font-size: 14px; color: #333; font-style: italic; line-height: 1.5;">
-                            "{note}"
-                        </div>
-                    </div>
-                    """
+                    # ⚠️ ĐÃ FIX: Tẩy sạch khoảng trắng tàng hình và dùng chuỗi nối an toàn ⚠️
+                    card_html = f"<div style='background-color: #FFF9E6; border-left: 5px solid #F4C430; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
+                    card_html += f"<div style='font-size: 13px; font-weight: bold; color: #0B192C; margin-bottom: 8px;'>"
+                    card_html += f"👤 {name} <span style='color: #666; font-weight: normal;'>({sdt})</span></div>"
+                    card_html += f"<div style='font-size: 14px; color: #333; font-style: italic; line-height: 1.5;'>\"{note}\"</div></div>"
+                    
                     # Rải đều thẻ vào 2 cột (0 thì cột trái, 1 thì cột phải)
                     cols[idx % 2].markdown(card_html, unsafe_allow_html=True)
             else:
                 st.info("Hiện tại chưa có bạn nào để lại lời nhắn.")
         else:
             st.error("Chưa có cột 'Lưu ý' trong dữ liệu.")
-        
+            
     elif pass_admin != "":
+        st.error("Sai mật khẩu!")
+
+# ================= TAB 3: CHECK-IN SỰ KIỆN =================
+with tab3:
+    st.markdown("### 🎁 MÁY QUÉT CHECK-IN TẠI SỰ KIỆN")
+    pass_admin_3 = st.text_input("Nhập mật khẩu Admin để vào cổng:", type="password", key="pass_tab3")
+    
+    if pass_admin_3 == ADMIN_PASSWORD:
+        st.success("Đăng nhập cổng Check-in thành công!")
+        
+        def check_is_event(row):
+            noi = str(row.get('Nơi nhận', '')).strip().upper()
+            chk_noi = str(row.get('Bạn muốn nhận hàng như thế nào?', '')).strip()
+            is_ev = "LOVE" in noi or "SỰ KIỆN" in noi or "HÀ NỘI" in noi
+            if is_ev and chk_noi == 'Ship về nhà':
+                return False 
+            return is_ev
+
+        df_chot['Là_Sự_Kiện'] = df_chot.apply(check_is_event, axis=1)
+        df_event = df_chot[df_chot['Là_Sự_Kiện'] == True].copy()
+        
+        df_event['Đã giao'] = df_event['Đã giao'].apply(lambda x: True if str(x).strip().upper() in ['TRUE', '1', '1.0'] else False)
+        
+        st.markdown("<div class='section-title'>📊 TIẾN ĐỘ PHÁT QUÀ SỰ KIỆN</div>", unsafe_allow_html=True)
+        
+        total_ev = len(df_event)
+        da_giao_ev = df_event['Đã giao'].sum()
+        chua_giao_ev = total_ev - da_giao_ev
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("🎫 Tổng người nhận", total_ev)
+        c2.metric("✅ Đã phát", da_giao_ev)
+        c3.metric("⏳ Chưa phát", chua_giao_ev)
+        
+        with st.expander("👀 Xem danh sách các bạn CHƯA ĐẾN NHẬN"):
+            df_chua_nhan = df_event[df_event['Đã giao'] == False]
+            if not df_chua_nhan.empty:
+                for _, r in df_chua_nhan.iterrows():
+                    n = str(r.get('Nickname', '')).replace('nan','').strip() or "Fan"
+                    s = str(r.get('SDT full', '')).replace('.0','')
+                    st.markdown(f"- **{n}** - SĐT: {s}")
+            else:
+                st.success("Tuyệt vời! Đã phát hết 100% quà sự kiện!")
+        
+        st.markdown("#### 📦 KHO KHĂN SỰ KIỆN")
+        sp_list = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
+        tk_data = {"Loại Khăn": sp_list, "Tổng chuẩn bị": [], "Đã phát": [], "Còn lại": []}
+        
+        for p in sp_list:
+            tot = df_event[p].astype(str).str.contains('✅').sum()
+            phat = df_event[df_event['Đã giao'] == True][p].astype(str).str.contains('✅').sum()
+            con = tot - phat
+            tk_data["Tổng chuẩn bị"].append(tot)
+            tk_data["Đã phát"].append(phat)
+            tk_data["Còn lại"].append(con)
+            
+        df_tk = pd.DataFrame(tk_data)
+        
+        html_tk = "<table class='custom-table'><thead><tr><th>Loại Khăn</th><th>Tổng chuẩn bị</th><th>Đã phát</th><th>Còn lại</th></tr></thead><tbody>"
+        for i in range(4):
+            html_tk += f"<tr><td><b>{df_tk['Loại Khăn'][i]}</b></td>"
+            html_tk += f"<td>{df_tk['Tổng chuẩn bị'][i]}</td>"
+            html_tk += f"<td><span style='color: #28A745; font-weight: bold;'>{df_tk['Đã phát'][i]}</span></td>"
+            html_tk += f"<td><span style='color: #E74C3C; font-weight: bold;'>{df_tk['Còn lại'][i]}</span></td></tr>"
+        html_tk += "</tbody></table>"
+        st.markdown(html_tk, unsafe_allow_html=True)
+        
+        st.divider()
+        
+        st.markdown("<div class='section-title'>🔍 TÌM KIẾM SĐT & CHECK-IN</div>", unsafe_allow_html=True)
+        
+        search_tail = st.text_input("Nhập 3 số đuôi SĐT để tra cứu đơn hàng:", max_chars=3, placeholder="Ví dụ: 123")
+        
+        if search_tail and len(search_tail) == 3:
+            df_search = df_event[df_event['SDT full'].astype(str).str.replace('.0', '').str.endswith(search_tail)]
+            
+            if df_search.empty:
+                st.warning(f"❌ Không tìm thấy bạn nào nhận tại sự kiện có 3 số đuôi là '{search_tail}'!")
+            else:
+                unique_sdts = df_search['SDT full'].unique()
+                st.success(f"🔍 Đã tìm thấy **{len(unique_sdts)}** người khớp với 3 số đuôi '{search_tail}'.")
+                
+                for sdt in unique_sdts:
+                    u_rows = df_search[df_search['SDT full'] == sdt]
+                    name = str(u_rows.iloc[0].get('Nickname', '')).replace('nan','').strip() or "BẠN FAN"
+                    sdt_clean = str(sdt).replace('.0', '')
+                    
+                    is_delivered = all(u_rows['Đã giao'] == True)
+                    
+                    box_color = "#FAFAFA" if is_delivered else "#F0F8FF"
+                    border_color = "#28A745" if is_delivered else "#F4C430"
+                    
+                    html_card = f"<div class='info-box' style='background-color: {box_color}; border-left: 5px solid {border_color}; padding: 15px; margin-bottom: 15px;'>"
+                    html_card += f"<h4 style='color: #0B192C; margin-top: 0;'>👤 {name.upper()} - SĐT: {sdt_clean}</h4>"
+                    
+                    html_card += "<table class='custom-table' style='margin-top: 10px; margin-bottom: 10px;'><thead><tr><th>Sản Phẩm</th><th>Số Lượng</th></tr></thead><tbody>"
+                    for p in sp_list:
+                        cnt = u_rows[p].astype(str).str.contains('✅').sum()
+                        if cnt == 0:
+                            val = ""
+                            style = "color: #B0B0B0;"
+                        elif cnt == 1:
+                            val = "<span class='custom-tick'>✓</span>"
+                            style = "color: #0B192C; font-weight: bold;"
+                        else:
+                            val = f"<span class='custom-tick'>{cnt}</span>"
+                            style = "color: #0B192C; font-weight: bold;"
+                        html_card += f"<tr style='{style}'><td>{p}</td><td>{val}</td></tr>"
+                    html_card += "</tbody></table>"
+                    
+                    if is_delivered:
+                        html_card += "<div style='text-align: center; color: #28A745; font-weight: bold; font-size: 18px; margin-top: 5px;'>✅ BẠN NÀY ĐÃ NHẬN HÀNG XONG!</div>"
+                    
+                    html_card += "</div>"
+                    st.markdown(html_card, unsafe_allow_html=True)
+                    
+                    if not is_delivered:
+                        if st.button(f"🚀 GIAO HÀNG CHO {name.upper()}", key=f"btn_giao_{sdt_clean}", type="primary"):
+                            with st.spinner(f"Đang ghi nhận đã giao cho {name}..."):
+                                conn = st.connection("gsheets", type=GSheetsConnection)
+                                df_f = conn.read(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1")
+                                df_f.columns = df_f.columns.str.strip()
+                                
+                                df_f = clean_df_for_gsheets(df_f)
+                                
+                                for idx in u_rows.index:
+                                    df_f.at[idx, 'Đã giao'] = True
+                                    
+                                conn.update(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1", data=df_f)
+                                st.cache_data.clear()
+                                st.success(f"✅ ĐÃ CẬP TRẠNG THÁI 'ĐÃ GIAO' CHO {name.upper()}!")
+                                st.rerun()
+    elif pass_admin_3 != "":
         st.error("Sai mật khẩu!")
