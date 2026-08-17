@@ -67,7 +67,7 @@ def set_form_lock(locked):
     else:
         if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
-# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI (Fix lỗi Checkbox 0/1 và Khôi phục số 0)
+# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI
 def clean_df_for_gsheets(df):
     cols_to_ensure = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn', 'Đã giao']
     for c in cols_to_ensure:
@@ -77,25 +77,23 @@ def clean_df_for_gsheets(df):
     if 'Bạn muốn nhận hàng như thế nào?' in df.columns:
         df['Bạn muốn nhận hàng như thế nào?'] = df['Bạn muốn nhận hàng như thế nào?'].astype(object)
 
-    # 1. Chuyển các cột Hộp kiểm bị biến thành 1/0 về dạng Boolean chuẩn
     checkbox_cols = ['Zalo', 'Bao đã nhận tiền', 'Đăng ký thành công', 'Đã hoàn', 'Đã giao']
     for col in checkbox_cols:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: True if str(x).strip() in ['1', '1.0', 'TRUE', 'True'] else (False if str(x).strip() in ['0', '0.0', 'FALSE', 'False'] else x))
             
-    # 2. KHÔI PHỤC VÀ BẢO VỆ SỐ 0 CHO TẤT CẢ CÁC CỘT SĐT VÀ STK
     def restore_phone_zero(x):
         s = str(x).replace('.0', '').replace("'", "").strip()
         if s.lower() in ['nan', 'none', '']: return ""
         s_clean = s.replace(" ", "").replace(".", "")
         if s_clean.isdigit() and not s.startswith('0'): 
             s = '0' + s
-        return s # Đã bỏ dấu nháy đơn
+        return s 
         
     def protect_stk(x):
         s = str(x).replace('.0', '').replace("'", "").strip()
         if s.lower() in ['nan', 'none', '']: return ""
-        return s # Đã bỏ dấu nháy đơn
+        return s 
         
     for col in df.columns:
         col_upper = col.upper()
@@ -384,26 +382,34 @@ with tab2:
             df_confirmed = df_chot[df_chot['Trạng thái xác nhận'].astype(str).str.strip() == 'Đã xác nhận']
             confirmed_total = len(df_confirmed)
             
-            # Đã fix lại bản Đối chiếu Gốc - Checked chuẩn 100%
+            # ⚠️ ĐÃ FIX: Hàm kiểm tra siêu chống lỗi, không bao giờ gọt lộn tên người ta nữa
             def has_update(row):
-                orig_sdt = str(row.get('SDT full', '')).replace('.0', '').replace("'", "").strip()
+                def safe_str(val):
+                    if pd.isna(val): return ""
+                    s = str(val).strip()
+                    if s.lower() in ['nan', 'none', '<na>', 'nat', '']: return ""
+                    return s
+                
+                orig_sdt = safe_str(row.get('SDT full', '')).replace('.0', '').replace("'", "")
                 if orig_sdt.isdigit() and not orig_sdt.startswith('0'):
                     orig_sdt = '0' + orig_sdt
-                orig_dc = str(row.get('Địa chỉ', '')).strip()
+                    
+                orig_dc = safe_str(row.get('Địa chỉ', ''))
                 
-                noi_goc = str(row.get('Nơi nhận', '')).strip().upper()
+                noi_goc = safe_str(row.get('Nơi nhận', '')).upper()
                 is_event_goc = "LOVE" in noi_goc or "SỰ KIỆN" in noi_goc or "HÀ NỘI" in noi_goc
 
-                chk_sdt = str(row.get('Checked SDT', '')).replace("'", "").strip().replace('nan', '').replace('None', '')
-                chk_dc = str(row.get('Checked Địa chỉ', '')).strip().replace('nan', '').replace('None', '')
-                chk_noi = str(row.get('Bạn muốn nhận hàng như thế nào?', '')).strip()
+                chk_sdt = safe_str(row.get('Checked SDT', '')).replace('.0', '').replace("'", "")
+                if chk_sdt.isdigit() and not chk_sdt.startswith('0'):
+                    chk_sdt = '0' + chk_sdt
+                    
+                chk_dc = safe_str(row.get('Checked Địa chỉ', ''))
+                chk_noi = safe_str(row.get('Bạn muốn nhận hàng như thế nào?', ''))
 
-                if is_event_goc and chk_noi == 'Ship về nhà':
-                    return True
-                if chk_sdt != '' and chk_sdt != orig_sdt:
-                    return True
-                if chk_dc != '' and chk_dc != orig_dc:
-                    return True
+                # Xét các lỗi cập nhật
+                if is_event_goc and chk_noi == 'Ship về nhà': return True
+                if chk_sdt != '' and chk_sdt != orig_sdt: return True
+                if chk_dc != '' and chk_dc != orig_dc: return True
                 return False
                 
             if confirmed_total > 0:
@@ -713,19 +719,18 @@ with tab3:
         st.divider()
         st.markdown("### 📥 TẢI XUỐNG DỮ LIỆU CHECK-IN")
         
-        # Chuẩn bị DataFrame để xuất Excel
+        # ⚠️ ĐÃ FIX: Lỗi vòng lặp bool dò chữ ✅ 
         df_export = df_event[['Nickname', 'SDT full', 'Đã giao'] + sp_list].copy()
         df_export.rename(columns={'Nickname': 'Tên', 'SDT full': 'SĐT'}, inplace=True)
         
-        # Dọn dẹp dữ liệu cho đẹp
         df_export['Tên'] = df_export['Tên'].astype(str).replace('nan', '')
-        df_export['SĐT'] = df_export['SĐT'].astype(str).replace('.0', '').apply(lambda x: f"'{x}") # Giữ số 0
+        df_export['SĐT'] = df_export['SĐT'].astype(str).replace('.0', '').apply(lambda x: f"'{x}")
         df_export['Đã giao'] = df_export['Đã giao'].apply(lambda x: "✅" if x else "")
         
+        # Ép qua chuỗi dứt điểm, không cho bool tham gia để tránh TypeError
         for p in sp_list:
-            df_export[p] = df_export[p].astype(str).apply(lambda x: "✅" if "✅" in x else "")
+            df_export[p] = df_export[p].apply(lambda x: "✅" if "✅" in str(x) else "")
             
-        # Nén thành file Excel
         output_ev = io.BytesIO()
         with pd.ExcelWriter(output_ev, engine='openpyxl') as writer:
             df_export.to_excel(writer, index=False, sheet_name='Giao_Su_Kien')
