@@ -125,15 +125,28 @@ def load_data():
         
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
-    return df
+
+    # Đọc thêm tab Data_DVVC để lấy link tra cứu
+    dvvc_dict = {}
+    try:
+        df_dvvc = conn.read(spreadsheet=url, worksheet="Data_DVVC")
+        df_dvvc.columns = df_dvvc.columns.str.strip()
+        df_dvvc = df_dvvc.dropna(subset=['DVVC']) # Bỏ qua dòng rỗng
+        dvvc_dict = dict(zip(df_dvvc['DVVC'].astype(str).str.strip(), df_dvvc['Link tra cứu'].astype(str).str.strip()))
+    except Exception as e:
+        pass # Nếu Sheet chưa kịp tạo thì cứ pass nhẹ nhàng, ko làm sập app
+        
+    return df, dvvc_dict
+    
 
 try:
-    df_raw = load_data()
+    df_raw, dvvc_dict = load_data()
     # Lấy các đơn ĐÃ CHỐT ĐƠN
     df_chot = df_raw[df_raw['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)].copy()
 except Exception as e:
     st.error("Đang có lỗi kết nối dữ liệu. Vui lòng thử lại sau!")
     st.stop()
+    
 
 tab1, tab2 = st.tabs(["🔍 XÁC NHẬN ĐƠN HÀNG", "🔒 ADMIN"])
 
@@ -197,6 +210,41 @@ with tab1:
         else:
             st.info(f"👋 Chào {nickname.upper()} ơi, bạn kiểm tra lại thông tin đơn hàng của mình lần cuối nha!")
 
+        # 0. THÔNG TIN VẬN CHUYỂN (Nằm trên Thông tin sản phẩm)
+        st.markdown("<div class='section-title'>🚚 THÔNG TIN VẬN CHUYỂN</div>", unsafe_allow_html=True)
+        
+        mvd = str(row_data.get('Mã vận đơn', '')).replace('nan', '').strip()
+        dvvc = str(row_data.get('DVVC', '')).replace('nan', '').strip()
+        phien = str(row_data.get('Phiên lấy hàng', '')).replace('nan', '').strip()
+        
+        # Check xem có phải nhận sự kiện không (Đã update nếu Fan đổi từ Sự kiện sang Ship)
+        is_event_delivery = "LOVE" in noi_nhan_goc or "SỰ KIỆN" in noi_nhan_goc or "HÀ NỘI" in noi_nhan_goc
+        
+        if mvd == "":
+            st.info("📦 Tụi mình sẽ sớm cập nhật Thông tin vận chuyển ngay sau khi book đơn nha ❤️")
+        else:
+            link_tra_cuu = dvvc_dict.get(dvvc, "")
+            
+            html_ship = f"""
+            <div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430;'>
+                <div style='margin-bottom: 8px;'><b>Mã vận đơn:</b> <span style='color: #E74C3C; font-weight: bold; font-size: 16px;'>{mvd}</span></div>
+                <div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> {dvvc}</div>
+                <div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> {phien}</div>
+            """
+            
+            # Chỉ hiện Link tracking nếu có link VÀ KHÔNG PHẢI đơn sự kiện
+            if link_tra_cuu != "" and not is_event_delivery:
+                html_ship += f"<div style='margin-bottom: 8px;'><b>Link để tracking:</b> <a href='{link_tra_cuu}' target='_blank' style='color: #0066CC; text-decoration: none; font-weight: bold;'>Bấm vào đây để tra cứu hành trình nha 🚀</a></div>"
+                
+            html_ship += """
+                <hr style='border: 0.5px dashed #ccc; margin: 15px 0 10px 0;'>
+                <div style='font-size: 14px; font-style: italic; color: #555;'>
+                    Nếu mọi người có gì cần hỗ trợ cứ liên hệ với tụi mình như thông tin trong group Zalo nha 😍
+                </div>
+            </div>
+            """
+            st.markdown(html_ship, unsafe_allow_html=True)
+            
         # 1. THÔNG TIN SẢN PHẨM (Xám mờ nếu = 0, dấu check nếu = 1)
         st.markdown("<div class='section-title'>🛒 THÔNG TIN SẢN PHẨM</div>", unsafe_allow_html=True)
         products = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
