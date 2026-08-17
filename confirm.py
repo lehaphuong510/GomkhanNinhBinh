@@ -92,12 +92,12 @@ def clean_df_for_gsheets(df):
         s_clean = s.replace(" ", "").replace(".", "")
         if s_clean.isdigit() and not s.startswith('0'): 
             s = '0' + s
-        return f"'{s}" # Chèn nháy đơn để vĩnh viễn GG Sheet ko nuốt số 0 nữa
+        return s # Chèn nháy đơn để vĩnh viễn GG Sheet ko nuốt số 0 nữa
         
     def protect_stk(x):
         s = str(x).replace('.0', '').replace("'", "").strip()
         if s.lower() in ['nan', 'none', '']: return ""
-        return f"'{s}" # STK ko tự thêm 0 vì có ngân hàng ko bắt đầu bằng 0
+        return s # STK ko tự thêm 0 vì có ngân hàng ko bắt đầu bằng 0
         
     # Quét tát cả các cột, hễ thấy SĐT hoặc STK là áp dụng khiên bảo vệ
     for col in df.columns:
