@@ -315,9 +315,9 @@ with tab1:
                                 if is_event and not is_correct:
                                     df_form.at[idx, 'Bạn muốn nhận hàng như thế nào?'] = "Ship về nhà"
                                 
-                                # Chèn nháy đơn bảo toàn số 0    
-                                sdt_to_save = f"'{final_phone}" if final_phone.strip() != "" else ""
-                                stk_to_save = f"'{final_stk}" if final_stk.strip() != "" else ""
+                                # Đã ép định dạng Plain Text trên Sheet nên lưu số trực tiếp luôn
+                                sdt_to_save = final_phone.strip() if final_phone.strip() != "" else ""
+                                stk_to_save = final_stk.strip() if final_stk.strip() != "" else ""
                                     
                                 df_form.at[idx, 'Checked SDT'] = sdt_to_save
                                 df_form.at[idx, 'Checked Địa chỉ'] = final_address
@@ -360,14 +360,36 @@ with tab2:
             df_confirmed = df_chot[df_chot['Trạng thái xác nhận'].astype(str).str.strip() == 'Đã xác nhận']
             confirmed_total = len(df_confirmed)
             
-            # Đếm số người CÓ CẬP NHẬT THÔNG TIN
+            
+            # Đếm số người CÓ CẬP NHẬT THÔNG TIN (Cách 2: So sánh Đối chiếu)
             def has_update(row):
-                chk_sdt = str(row.get('Checked SDT', '')).strip().replace('nan', '').replace('None', '')
+                # 1. Lấy và dọn dẹp data gốc
+                orig_sdt = str(row.get('SDT full', '')).replace('.0', '').replace("'", "").strip()
+                if orig_sdt.isdigit() and not orig_sdt.startswith('0'):
+                    orig_sdt = '0' + orig_sdt
+                orig_dc = str(row.get('Địa chỉ', '')).strip()
+                
+                noi_goc = str(row.get('Nơi nhận', '')).strip().upper()
+                is_event_goc = "LOVE" in noi_goc or "SỰ KIỆN" in noi_goc or "HÀ NỘI" in noi_goc
+
+                # 2. Lấy và dọn dẹp data Checked
+                chk_sdt = str(row.get('Checked SDT', '')).replace("'", "").strip().replace('nan', '').replace('None', '')
                 chk_dc = str(row.get('Checked Địa chỉ', '')).strip().replace('nan', '').replace('None', '')
                 chk_noi = str(row.get('Bạn muốn nhận hàng như thế nào?', '')).strip()
-                # Có nhập SĐT mới, có nhập ĐC mới, hoặc đổi từ Sự kiện sang Ship
-                if chk_sdt != '' or chk_dc != '' or chk_noi == 'Ship về nhà':
+
+                # 3. Mở phiên tòa xét xử: So sánh gốc và mới
+                # TH1: Khách nhận sự kiện nhưng quyết định "quay xe" chọn Ship
+                if is_event_goc and chk_noi == 'Ship về nhà':
                     return True
+                
+                # TH2: Cột Checked SDT có dữ liệu VÀ KHÁC với SDT gốc
+                if chk_sdt != '' and chk_sdt != orig_sdt:
+                    return True
+                
+                # TH3: Cột Checked Địa chỉ có dữ liệu VÀ KHÁC với Địa chỉ gốc
+                if chk_dc != '' and chk_dc != orig_dc:
+                    return True
+
                 return False
                 
             if confirmed_total > 0:
@@ -512,6 +534,48 @@ with tab2:
             tab3_html += "</tr>"
         tab3_html += "</tbody></table>"
         st.markdown(tab3_html, unsafe_allow_html=True)
+
+        # 6. TỔNG HỢP LỜI CHÚC / LƯU Ý TỪ FAN
+        st.divider()
+        st.markdown("### 💌 LỜI NHẮN NHỦ TỪ FAN")
+
+        if 'Lưu ý' in df_chot.columns:
+            # Lọc ra những người có điền Lưu ý (khác rỗng, nan, None)
+            df_notes = df_chot[df_chot['Lưu ý'].astype(str).str.strip().replace(['nan', 'None', ''], pd.NA).notna()]
+            
+            # Bỏ qua những bạn chỉ nhập khoảng trắng
+            df_notes = df_notes[df_notes['Lưu ý'].astype(str).str.strip() != '']
+            
+            if not df_notes.empty:
+                st.write(f"🥰 Đang có **{len(df_notes)}** lời nhắn siêu dễ thương từ các bạn Fan nè:")
+                
+                # Chia làm 2 cột cho đẹp và đỡ bị dài trang
+                cols = st.columns(2)
+                
+                for idx, row in enumerate(df_notes.iterrows()):
+                    row_data = row[1]
+                    note = str(row_data['Lưu ý']).strip()
+                    sdt = str(row_data.get('SDT full', '')).replace('.0', '').replace("'", "")
+                    name = str(row_data.get('Nickname', '')).replace('nan', '').strip()
+                    if name == "": name = "Fan Giấu Tên"
+                    
+                    # HTML template cho 1 card lời nhắn (màu vàng nhạt, viền vàng đậm)
+                    card_html = f"""
+                    <div style="background-color: #FFF9E6; border-left: 5px solid #F4C430; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                        <div style="font-size: 13px; font-weight: bold; color: #0B192C; margin-bottom: 8px;">
+                            👤 {name} <span style="color: #666; font-weight: normal;">({sdt})</span>
+                        </div>
+                        <div style="font-size: 14px; color: #333; font-style: italic; line-height: 1.5;">
+                            "{note}"
+                        </div>
+                    </div>
+                    """
+                    # Rải đều thẻ vào 2 cột (0 thì cột trái, 1 thì cột phải)
+                    cols[idx % 2].markdown(card_html, unsafe_allow_html=True)
+            else:
+                st.info("Hiện tại chưa có bạn nào để lại lời nhắn.")
+        else:
+            st.error("Chưa có cột 'Lưu ý' trong dữ liệu.")
         
     elif pass_admin != "":
         st.error("Sai mật khẩu!")
