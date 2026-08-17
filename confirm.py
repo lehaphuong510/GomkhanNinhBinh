@@ -67,7 +67,7 @@ def set_form_lock(locked):
     else:
         if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
-# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI
+# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI (Fix lỗi Checkbox 0/1 và Khôi phục số 0)
 def clean_df_for_gsheets(df):
     cols_to_ensure = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn', 'Đã giao']
     for c in cols_to_ensure:
@@ -90,12 +90,12 @@ def clean_df_for_gsheets(df):
         s_clean = s.replace(" ", "").replace(".", "")
         if s_clean.isdigit() and not s.startswith('0'): 
             s = '0' + s
-        return s 
+        return s # Đã bỏ dấu nháy đơn
         
     def protect_stk(x):
         s = str(x).replace('.0', '').replace("'", "").strip()
         if s.lower() in ['nan', 'none', '']: return ""
-        return s 
+        return s # Đã bỏ dấu nháy đơn
         
     for col in df.columns:
         col_upper = col.upper()
@@ -133,15 +133,14 @@ def load_data():
         pass 
         
     return df, dvvc_dict
-    
 
 try:
     df_raw, dvvc_dict = load_data()
+    # Lấy các đơn ĐÃ CHỐT ĐƠN
     df_chot = df_raw[df_raw['Trạng thái chuyển khoản'].astype(str).str.upper().str.contains('CHỐT ĐƠN', na=False)].copy()
 except Exception as e:
     st.error("Đang có lỗi kết nối dữ liệu. Vui lòng thử lại sau!")
     st.stop()
-    
 
 tab1, tab2, tab3 = st.tabs(["🔍 XÁC NHẬN ĐƠN HÀNG", "🔒 ADMIN", "🎁 GIAO SỰ KIỆN"])
 
@@ -231,7 +230,6 @@ with tab1:
             html_ship += "</div>"
             
             st.markdown(html_ship, unsafe_allow_html=True)
-            
             
         # 1. THÔNG TIN SẢN PHẨM
         st.markdown("<div class='section-title'>🛒 THÔNG TIN SẢN PHẨM</div>", unsafe_allow_html=True)
@@ -386,6 +384,7 @@ with tab2:
             df_confirmed = df_chot[df_chot['Trạng thái xác nhận'].astype(str).str.strip() == 'Đã xác nhận']
             confirmed_total = len(df_confirmed)
             
+            # Đã fix lại bản Đối chiếu Gốc - Checked chuẩn 100%
             def has_update(row):
                 orig_sdt = str(row.get('SDT full', '')).replace('.0', '').replace("'", "").strip()
                 if orig_sdt.isdigit() and not orig_sdt.startswith('0'):
@@ -401,13 +400,10 @@ with tab2:
 
                 if is_event_goc and chk_noi == 'Ship về nhà':
                     return True
-                
                 if chk_sdt != '' and chk_sdt != orig_sdt:
                     return True
-                
                 if chk_dc != '' and chk_dc != orig_dc:
                     return True
-
                 return False
                 
             if confirmed_total > 0:
@@ -564,13 +560,11 @@ with tab2:
                     name = str(row_data.get('Nickname', '')).replace('nan', '').strip()
                     if name == "": name = "Fan Giấu Tên"
                     
-                    # ⚠️ ĐÃ FIX: Tẩy sạch khoảng trắng tàng hình và dùng chuỗi nối an toàn ⚠️
                     card_html = f"<div style='background-color: #FFF9E6; border-left: 5px solid #F4C430; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
                     card_html += f"<div style='font-size: 13px; font-weight: bold; color: #0B192C; margin-bottom: 8px;'>"
                     card_html += f"👤 {name} <span style='color: #666; font-weight: normal;'>({sdt})</span></div>"
                     card_html += f"<div style='font-size: 14px; color: #333; font-style: italic; line-height: 1.5;'>\"{note}\"</div></div>"
                     
-                    # Rải đều thẻ vào 2 cột (0 thì cột trái, 1 thì cột phải)
                     cols[idx % 2].markdown(card_html, unsafe_allow_html=True)
             else:
                 st.info("Hiện tại chưa có bạn nào để lại lời nhắn.")
@@ -598,57 +592,13 @@ with tab3:
 
         df_chot['Là_Sự_Kiện'] = df_chot.apply(check_is_event, axis=1)
         df_event = df_chot[df_chot['Là_Sự_Kiện'] == True].copy()
-        
         df_event['Đã giao'] = df_event['Đã giao'].apply(lambda x: True if str(x).strip().upper() in ['TRUE', '1', '1.0'] else False)
         
-        st.markdown("<div class='section-title'>📊 TIẾN ĐỘ PHÁT QUÀ SỰ KIỆN</div>", unsafe_allow_html=True)
-        
-        total_ev = len(df_event)
-        da_giao_ev = df_event['Đã giao'].sum()
-        chua_giao_ev = total_ev - da_giao_ev
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("🎫 Tổng người nhận", total_ev)
-        c2.metric("✅ Đã phát", da_giao_ev)
-        c3.metric("⏳ Chưa phát", chua_giao_ev)
-        
-        with st.expander("👀 Xem danh sách các bạn CHƯA ĐẾN NHẬN"):
-            df_chua_nhan = df_event[df_event['Đã giao'] == False]
-            if not df_chua_nhan.empty:
-                for _, r in df_chua_nhan.iterrows():
-                    n = str(r.get('Nickname', '')).replace('nan','').strip() or "Fan"
-                    s = str(r.get('SDT full', '')).replace('.0','')
-                    st.markdown(f"- **{n}** - SĐT: {s}")
-            else:
-                st.success("Tuyệt vời! Đã phát hết 100% quà sự kiện!")
-        
-        st.markdown("#### 📦 KHO KHĂN SỰ KIỆN")
-        sp_list = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
-        tk_data = {"Loại Khăn": sp_list, "Tổng chuẩn bị": [], "Đã phát": [], "Còn lại": []}
-        
-        for p in sp_list:
-            tot = df_event[p].astype(str).str.contains('✅').sum()
-            phat = df_event[df_event['Đã giao'] == True][p].astype(str).str.contains('✅').sum()
-            con = tot - phat
-            tk_data["Tổng chuẩn bị"].append(tot)
-            tk_data["Đã phát"].append(phat)
-            tk_data["Còn lại"].append(con)
-            
-        df_tk = pd.DataFrame(tk_data)
-        
-        html_tk = "<table class='custom-table'><thead><tr><th>Loại Khăn</th><th>Tổng chuẩn bị</th><th>Đã phát</th><th>Còn lại</th></tr></thead><tbody>"
-        for i in range(4):
-            html_tk += f"<tr><td><b>{df_tk['Loại Khăn'][i]}</b></td>"
-            html_tk += f"<td>{df_tk['Tổng chuẩn bị'][i]}</td>"
-            html_tk += f"<td><span style='color: #28A745; font-weight: bold;'>{df_tk['Đã phát'][i]}</span></td>"
-            html_tk += f"<td><span style='color: #E74C3C; font-weight: bold;'>{df_tk['Còn lại'][i]}</span></td></tr>"
-        html_tk += "</tbody></table>"
-        st.markdown(html_tk, unsafe_allow_html=True)
-        
-        st.divider()
-        
+        # ---------------------------------------------------------
+        # KHU VỰC 1: TÌM KIẾM & CHECK-IN ĐƯA LÊN ĐẦU
         st.markdown("<div class='section-title'>🔍 TÌM KIẾM SĐT & CHECK-IN</div>", unsafe_allow_html=True)
         
+        sp_list = ["Bandana TTB", "Twilly TTB", "Bandana ĐMN", "Twilly ĐMN"]
         search_tail = st.text_input("Nhập 3 số đuôi SĐT để tra cứu đơn hàng:", max_chars=3, placeholder="Ví dụ: 123")
         
         if search_tail and len(search_tail) == 3:
@@ -708,7 +658,85 @@ with tab3:
                                     
                                 conn.update(spreadsheet=url, worksheet="Câu trả lời biểu mẫu 1", data=df_f)
                                 st.cache_data.clear()
-                                st.success(f"✅ ĐÃ CẬP TRẠNG THÁI 'ĐÃ GIAO' CHO {name.upper()}!")
+                                st.success(f"✅ ĐÃ CẬP NHẬT TRẠNG THÁI 'ĐÃ GIAO' CHO {name.upper()}!")
                                 st.rerun()
+
+        st.divider()
+
+        # ---------------------------------------------------------
+        # KHU VỰC 2: CỤM CARD THỐNG KÊ (Đã đẩy xuống dưới)
+        st.markdown("<div class='section-title'>📊 TIẾN ĐỘ PHÁT QUÀ SỰ KIỆN</div>", unsafe_allow_html=True)
+        
+        total_ev = len(df_event)
+        da_giao_ev = df_event['Đã giao'].sum()
+        chua_giao_ev = total_ev - da_giao_ev
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("🎫 Tổng người nhận", total_ev)
+        c2.metric("✅ Đã phát", da_giao_ev)
+        c3.metric("⏳ Chưa phát", chua_giao_ev)
+        
+        with st.expander("👀 Xem danh sách các bạn CHƯA ĐẾN NHẬN"):
+            df_chua_nhan = df_event[df_event['Đã giao'] == False]
+            if not df_chua_nhan.empty:
+                for _, r in df_chua_nhan.iterrows():
+                    n = str(r.get('Nickname', '')).replace('nan','').strip() or "Fan"
+                    s = str(r.get('SDT full', '')).replace('.0','')
+                    st.markdown(f"- **{n}** - SĐT: {s}")
+            else:
+                st.success("Tuyệt vời! Đã phát hết 100% quà sự kiện!")
+        
+        st.markdown("#### 📦 KHO KHĂN SỰ KIỆN")
+        tk_data = {"Loại Khăn": sp_list, "Tổng chuẩn bị": [], "Đã phát": [], "Còn lại": []}
+        
+        for p in sp_list:
+            tot = df_event[p].astype(str).str.contains('✅').sum()
+            phat = df_event[df_event['Đã giao'] == True][p].astype(str).str.contains('✅').sum()
+            con = tot - phat
+            tk_data["Tổng chuẩn bị"].append(tot)
+            tk_data["Đã phát"].append(phat)
+            tk_data["Còn lại"].append(con)
+            
+        df_tk = pd.DataFrame(tk_data)
+        
+        html_tk = "<table class='custom-table'><thead><tr><th>Loại Khăn</th><th>Tổng chuẩn bị</th><th>Đã phát</th><th>Còn lại</th></tr></thead><tbody>"
+        for i in range(4):
+            html_tk += f"<tr><td><b>{df_tk['Loại Khăn'][i]}</b></td>"
+            html_tk += f"<td>{df_tk['Tổng chuẩn bị'][i]}</td>"
+            html_tk += f"<td><span style='color: #28A745; font-weight: bold;'>{df_tk['Đã phát'][i]}</span></td>"
+            html_tk += f"<td><span style='color: #E74C3C; font-weight: bold;'>{df_tk['Còn lại'][i]}</span></td></tr>"
+        html_tk += "</tbody></table>"
+        st.markdown(html_tk, unsafe_allow_html=True)
+        
+        # ---------------------------------------------------------
+        # KHU VỰC 3: XUẤT FILE EXCEL REALTIME
+        st.divider()
+        st.markdown("### 📥 TẢI XUỐNG DỮ LIỆU CHECK-IN")
+        
+        # Chuẩn bị DataFrame để xuất Excel
+        df_export = df_event[['Nickname', 'SDT full', 'Đã giao'] + sp_list].copy()
+        df_export.rename(columns={'Nickname': 'Tên', 'SDT full': 'SĐT'}, inplace=True)
+        
+        # Dọn dẹp dữ liệu cho đẹp
+        df_export['Tên'] = df_export['Tên'].astype(str).replace('nan', '')
+        df_export['SĐT'] = df_export['SĐT'].astype(str).replace('.0', '').apply(lambda x: f"'{x}") # Giữ số 0
+        df_export['Đã giao'] = df_export['Đã giao'].apply(lambda x: "✅" if x else "")
+        
+        for p in sp_list:
+            df_export[p] = df_export[p].astype(str).apply(lambda x: "✅" if "✅" in x else "")
+            
+        # Nén thành file Excel
+        output_ev = io.BytesIO()
+        with pd.ExcelWriter(output_ev, engine='openpyxl') as writer:
+            df_export.to_excel(writer, index=False, sheet_name='Giao_Su_Kien')
+        excel_data_ev = output_ev.getvalue()
+        
+        st.download_button(
+            label="📥 TẢI FILE EXCEL DANH SÁCH SỰ KIỆN (.xlsx)",
+            data=excel_data_ev,
+            file_name="Danh_Sach_Giao_Su_Kien.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
     elif pass_admin_3 != "":
         st.error("Sai mật khẩu!")
