@@ -225,25 +225,23 @@ with tab1:
         else:
             link_tra_cuu = dvvc_dict.get(dvvc, "")
             
-            html_ship = f"""
-            <div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430;'>
-                <div style='margin-bottom: 8px;'><b>Mã vận đơn:</b> <span style='color: #E74C3C; font-weight: bold; font-size: 16px;'>{mvd}</span></div>
-                <div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> {dvvc}</div>
-                <div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> {phien}</div>
-            """
+            # Khai báo HTML trên từng dòng thẳng tắp để chống lỗi Markdown Code Block
+            html_ship = f"<div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430;'>"
+            html_ship += f"<div style='margin-bottom: 8px;'><b>Mã vận đơn:</b> <span style='color: #E74C3C; font-weight: bold; font-size: 16px;'>{mvd}</span></div>"
+            html_ship += f"<div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> <span style='color: #0B192C; font-weight: bold;'>{dvvc}</span></div>"
+            html_ship += f"<div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> <span style='color: #0B192C; font-weight: bold;'>{phien}</span></div>"
             
             # Chỉ hiện Link tracking nếu có link VÀ KHÔNG PHẢI đơn sự kiện
             if link_tra_cuu != "" and not is_event_delivery:
                 html_ship += f"<div style='margin-bottom: 8px;'><b>Link để tracking:</b> <a href='{link_tra_cuu}' target='_blank' style='color: #0066CC; text-decoration: none; font-weight: bold;'>Bấm vào đây để tra cứu hành trình nha 🚀</a></div>"
                 
-            html_ship += """
-                <hr style='border: 0.5px dashed #ccc; margin: 15px 0 10px 0;'>
-                <div style='font-size: 14px; font-style: italic; color: #555;'>
-                    Nếu mọi người có gì cần hỗ trợ cứ liên hệ với tụi mình như thông tin trong group Zalo nha 😍
-                </div>
-            </div>
-            """
+            html_ship += "<hr style='border: 0.5px dashed #ccc; margin: 15px 0 10px 0;'>"
+            html_ship += "<div style='font-size: 14px; font-style: italic; color: #555;'>Nếu mọi người có gì cần hỗ trợ cứ liên hệ với tụi mình như thông tin trong group Zalo nha 😍</div>"
+            html_ship += "</div>"
+            
             st.markdown(html_ship, unsafe_allow_html=True)
+            
+            
             
         # 1. THÔNG TIN SẢN PHẨM (Xám mờ nếu = 0, dấu check nếu = 1)
         st.markdown("<div class='section-title'>🛒 THÔNG TIN SẢN PHẨM</div>", unsafe_allow_html=True)
