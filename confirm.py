@@ -68,6 +68,7 @@ def set_form_lock(locked):
         if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
 # HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI (Fix lỗi Checkbox 0/1 và Lỗi TypeError)
+# HÀM TẨY TRẦN DỮ LIỆU GG SHEET TRƯỚC KHI GHI (Fix lỗi Checkbox 0/1 và Khôi phục số 0)
 def clean_df_for_gsheets(df):
     cols_to_ensure = ['Checked SDT', 'Checked Địa chỉ', 'Ngân hàng', 'STK', 'Chủ TK', 'Lưu ý', 'Trạng thái xác nhận', 'Đã hoàn']
     for c in cols_to_ensure:
@@ -77,11 +78,35 @@ def clean_df_for_gsheets(df):
     if 'Bạn muốn nhận hàng như thế nào?' in df.columns:
         df['Bạn muốn nhận hàng như thế nào?'] = df['Bạn muốn nhận hàng như thế nào?'].astype(object)
 
-    # Chuyển các cột Hộp kiểm bị biến thành 1/0 về dạng Boolean chuẩn
+    # 1. Chuyển các cột Hộp kiểm bị biến thành 1/0 về dạng Boolean chuẩn
     checkbox_cols = ['Zalo', 'Bao đã nhận tiền', 'Đăng ký thành công', 'Đã hoàn']
     for col in checkbox_cols:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: True if str(x).strip() in ['1', '1.0', 'TRUE', 'True'] else (False if str(x).strip() in ['0', '0.0', 'FALSE', 'False'] else x))
+            
+    # 2. KHÔI PHỤC VÀ BẢO VỆ SỐ 0 CHO TẤT CẢ CÁC CỘT SĐT VÀ STK
+    def restore_phone_zero(x):
+        s = str(x).replace('.0', '').replace("'", "").strip()
+        if s.lower() in ['nan', 'none', '']: return ""
+        # Nếu là toàn số mà mất số 0 ở đầu thì nhả số 0 ra lại
+        s_clean = s.replace(" ", "").replace(".", "")
+        if s_clean.isdigit() and not s.startswith('0'): 
+            s = '0' + s
+        return f"'{s}" # Chèn nháy đơn để vĩnh viễn GG Sheet ko nuốt số 0 nữa
+        
+    def protect_stk(x):
+        s = str(x).replace('.0', '').replace("'", "").strip()
+        if s.lower() in ['nan', 'none', '']: return ""
+        return f"'{s}" # STK ko tự thêm 0 vì có ngân hàng ko bắt đầu bằng 0
+        
+    # Quét tát cả các cột, hễ thấy SĐT hoặc STK là áp dụng khiên bảo vệ
+    for col in df.columns:
+        col_upper = col.upper()
+        if 'SDT' in col_upper or 'ĐIỆN THOẠI' in col_upper:
+            df[col] = df[col].apply(restore_phone_zero)
+        elif 'STK' in col_upper or ('TÀI KHOẢN' in col_upper and 'CHỦ' not in col_upper):
+            df[col] = df[col].apply(protect_stk)
+            
     return df
 
 @st.cache_data(ttl=60)
