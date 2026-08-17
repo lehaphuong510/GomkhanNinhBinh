@@ -211,7 +211,7 @@ with tab1:
         dvvc = str(row_data.get('DVVC', '')).replace('nan', '').strip()
         phien = str(row_data.get('Phiên lấy hàng', '')).replace('nan', '').strip()
         
-        is_event_delivery = "LOVE" in noi_nhan_goc or "SỰ KIỆN" in noi_nhan_goc or "HÀ NỘI" in noi_nhan_goc
+        is_event = "LOVE" in noi_nhan_goc or "SỰ KIỆN" in noi_nhan_goc or "HÀ NỘI" in noi_nhan_goc
         
         if mvd == "":
             st.info("📦 Tụi mình sẽ sớm cập nhật Thông tin vận chuyển ngay sau khi book đơn nha ❤️")
@@ -223,7 +223,7 @@ with tab1:
             html_ship += f"<div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> <span style='color: #0B192C; font-weight: bold;'>{dvvc}</span></div>"
             html_ship += f"<div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> <span style='color: #0B192C; font-weight: bold;'>{phien}</span></div>"
             
-            if link_tra_cuu != "" and not is_event_delivery:
+            if link_tra_cuu != "" and not is_event:
                 html_ship += f"<div style='margin-bottom: 8px;'><b>Link để tracking:</b> <a href='{link_tra_cuu}' target='_blank' style='color: #0066CC; text-decoration: none; font-weight: bold;'>Bấm vào đây để tra cứu hành trình nha 🚀</a></div>"
                 
             html_ship += "<hr style='border: 0.5px dashed #ccc; margin: 15px 0 10px 0;'>"
