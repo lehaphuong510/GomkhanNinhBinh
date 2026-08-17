@@ -328,18 +328,36 @@ with tab2:
         # 2. CARD THỐNG KÊ XÁC NHẬN (TÍNH TẤT CẢ ĐƠN)
         total_orders = len(df_chot)
         
-        confirmed_count = 0
+        confirmed_total = 0
+        updated_count = 0
+        
         if 'Trạng thái xác nhận' in df_chot.columns:
-            confirmed_count = df_chot[df_chot['Trạng thái xác nhận'].astype(str).str.strip() == 'Đã xác nhận'].shape[0]
+            df_confirmed = df_chot[df_chot['Trạng thái xác nhận'].astype(str).str.strip() == 'Đã xác nhận']
+            confirmed_total = len(df_confirmed)
+            
+            # Đếm số người CÓ CẬP NHẬT THÔNG TIN
+            def has_update(row):
+                chk_sdt = str(row.get('Checked SDT', '')).strip().replace('nan', '').replace('None', '')
+                chk_dc = str(row.get('Checked Địa chỉ', '')).strip().replace('nan', '').replace('None', '')
+                chk_noi = str(row.get('Bạn muốn nhận hàng như thế nào?', '')).strip()
+                # Có nhập SĐT mới, có nhập ĐC mới, hoặc đổi từ Sự kiện sang Ship
+                if chk_sdt != '' or chk_dc != '' or chk_noi == 'Ship về nhà':
+                    return True
+                return False
+                
+            if confirmed_total > 0:
+                updated_count = df_confirmed.apply(has_update, axis=1).sum()
 
-        not_confirmed = total_orders - confirmed_count
+        just_confirmed_count = confirmed_total - updated_count
+        not_confirmed = total_orders - confirmed_total
         
         st.markdown("#### 📦 TIẾN ĐỘ XÁC NHẬN THÔNG TIN TỔNG")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("📦 Tổng số đơn", total_orders)
-        col2.metric("✅ Đã Xác Nhận", confirmed_count)
-        col3.metric("⏳ Đang chờ Xác Nhận", not_confirmed)
-        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("📦 Tổng đơn", total_orders)
+        col2.metric("👌 Chỉ Xác Nhận", just_confirmed_count, help="Giữ nguyên thông tin gốc")
+        col3.metric("✍️ Có Cập Nhật", updated_count, help="Đổi SĐT, Địa chỉ hoặc Đổi sang Ship")
+        col4.metric("⏳ Đang chờ", not_confirmed)
+
         st.divider()
         
         # 3. QUẢN LÝ HOÀN TIỀN
