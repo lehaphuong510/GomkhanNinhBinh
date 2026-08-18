@@ -90,15 +90,26 @@ def load_data():
     df = conn.read(spreadsheet=url, worksheet="Data App")
     df.columns = df.columns.str.strip()
     
+    # Hàm gọt đuôi .0 và đắp số 0 an toàn cho TẤT CẢ các cột SĐT
+    def fix_sdt(x):
+        if pd.isna(x): return ""
+        s = str(x).replace("'", "").strip()
+        if s.lower() in ['nan', 'none', '<na>', 'nat', '']: 
+            return ""
+        # Chỉ xóa đuôi .0 nếu nó nằm ở cuối cùng
+        if s.endswith('.0'): 
+            s = s[:-2]
+        # Bù lại số 0 bị rớt
+        if s.isdigit() and not s.startswith('0'): 
+            return '0' + s
+        return s
+        
     if 'SDT full' in df.columns:
-        def fix_sdt(x):
-            s = str(x).replace('.0', '').replace("'", "").strip()
-            if s.lower() in ['nan', 'none', '']: 
-                return ""
-            if s.isdigit() and not s.startswith('0'): 
-                return '0' + s
-            return s
         df['SDT full'] = df['SDT full'].apply(fix_sdt)
+        
+    # XỬ LUÔN THẰNG CHECKED SDT Ở ĐÂY ĐỂ TRÁNH MANG HOẠ VỀ SAU
+    if 'Checked SDT' in df.columns:
+        df['Checked SDT'] = df['Checked SDT'].apply(fix_sdt)
         
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
@@ -114,7 +125,7 @@ try:
         
     # 2. ƯU TIÊN LẤY DỮ LIỆU ĐÃ CONFIRM (Đè Checked lên gốc)
     if 'Checked SDT' in df_chot_don.columns:
-        df_chot_don['Checked SDT'] = df_chot_don['Checked SDT'].astype(str).str.replace("'", "").str.strip()
+        # Cột Checked SDT đã được tẩy trần ở hàm load_data, giờ chỉ cần lấy đè lên là xong
         df_chot_don['SDT full'] = df_chot_don['Checked SDT'].replace(['', 'nan', 'None'], pd.NA).fillna(df_chot_don['SDT full'])
         
     if 'Checked Địa chỉ' in df_chot_don.columns:
