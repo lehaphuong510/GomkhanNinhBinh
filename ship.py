@@ -342,16 +342,16 @@ try:
             mvd = str(row.get(COL_MVD, '')).replace('nan', '')
             
             c_p1 = row.get(COLS_SAN_PHAM[0], 0)
-            b1 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p1}x BD Trịnh Thăng Bình</b>" if c_p1 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Trịnh Thăng Bình</span>"
+            b1 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p1}x BB</b>" if c_p1 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BB</span>"
             
             c_p2 = row.get(COLS_SAN_PHAM[1], 0)
-            b2 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p2}x TW Trịnh Thăng Bình</b>" if c_p2 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Trịnh Thăng Bình</span>"
+            b2 = f"<span style='color: navy;'>✔</span> <b style='color: navy;'>{c_p2}x TB</b>" if c_p2 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TB</span>"
             
             c_p3 = row.get(COLS_SAN_PHAM[2], 0)
-            b3 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p3}x BD Đinh Mạnh Ninh</b>" if c_p3 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BD Đinh Mạnh Ninh</span>"
+            b3 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p3}x BN</b>" if c_p3 > 0 else "▢ <span style='font-weight:normal; color:#555;'>BN</span>"
             
             c_p4 = row.get(COLS_SAN_PHAM[3], 0)
-            b4 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p4}x TW Đinh Mạnh Ninh</b>" if c_p4 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TW Đinh Mạnh Ninh</span>"
+            b4 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p4}x TN</b>" if c_p4 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TN</span>"
 
             html_content += f"""
             <div class="label-box">
