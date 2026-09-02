@@ -123,15 +123,34 @@ def load_data():
 
     dvvc_dict = {}
     try:
-        df_dvvc = conn.read(spreadsheet=url, worksheet="Data_DVVC")
-        df_dvvc.columns = df_dvvc.columns.str.strip()
-        df_dvvc = df_dvvc.dropna(subset=['DVVC'])
-        dvvc_dict = dict(zip(df_dvvc['DVVC'].astype(str).str.strip(), df_dvvc['Link tra cứu'].astype(str).str.strip()))
+        # Đọc thô toàn bộ tab, không mặc định dòng 1 là header
+        df_dvvc_raw = conn.read(spreadsheet=url, worksheet="Data_DVVC", header=None)
+        
+        # Quét tìm dòng chứa chữ "DVVC" để làm mốc Header chuẩn
+        for index, row in df_dvvc_raw.iterrows():
+            row_str = row.astype(str).str.strip()
+            if 'DVVC' in row_str.values and 'Link tra cứu' in row_str.values:
+                # Đẩy dòng đó lên làm header chính thức
+                df_dvvc_raw.columns = row_str
+                # Cắt lấy dữ liệu thật từ các dòng bên dưới trở đi
+                df_dvvc = df_dvvc_raw.iloc[index+1:].copy()
+                
+                # Xóa các dòng rỗng
+                df_dvvc = df_dvvc.dropna(subset=['DVVC'])
+                
+                # Tạo từ điển map link siêu chuẩn
+                keys = df_dvvc['DVVC'].astype(str).str.strip()
+                vals = df_dvvc['Link tra cứu'].astype(str).str.strip().replace(['nan', 'None', '<NA>'], '')
+                
+                # Xóa tiếp các DVVC bị rỗng tên
+                valid_mask = (keys != '') & (keys.str.lower() != 'nan')
+                
+                dvvc_dict = dict(zip(keys[valid_mask], vals[valid_mask]))
+                break
     except Exception as e:
         pass 
         
     return df, dvvc_dict
-
 try:
     df_raw, dvvc_dict = load_data()
     # Lấy các đơn ĐÃ CHỐT ĐƠN
