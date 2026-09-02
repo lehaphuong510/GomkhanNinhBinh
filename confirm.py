@@ -110,43 +110,36 @@ def load_data():
     df = conn.read(spreadsheet=url, worksheet="Data App")
     df.columns = df.columns.str.strip()
     
+    # Bê nguyên cái hàm "tẩy trần" SĐT siêu cấp từ app Ship qua nè
+    def fix_sdt(x):
+        if pd.isna(x): return ""
+        s = str(x).replace("'", "").strip()
+        if s.lower() in ['nan', 'none', '<na>', 'nat', '']: 
+            return ""
+        # Chỉ xóa đuôi .0 nếu nó nằm ở cuối cùng
+        if s.endswith('.0'): 
+            s = s[:-2]
+        # Bù lại số 0 bị rớt
+        if s.isdigit() and not s.startswith('0'): 
+            return '0' + s
+        return s
+        
     if 'SDT full' in df.columns:
-        def fix_sdt(x):
-            s = str(x).replace('.0', '').strip()
-            if s.lower() in ['nan', 'none', '']: return ""
-            if s.isdigit() and not s.startswith('0'): return '0' + s
-            return s
         df['SDT full'] = df['SDT full'].apply(fix_sdt)
+        
+    # FIX LỖI Ở ĐÂY: Ép nó gọt luôn cái cột Checked SDT ngay từ lúc tải về
+    if 'Checked SDT' in df.columns:
+        df['Checked SDT'] = df['Checked SDT'].apply(fix_sdt)
         
     if 'Chuyển khoản thành công' in df.columns and 'Trạng thái chuyển khoản' not in df.columns:
         df = df.rename(columns={'Chuyển khoản thành công': 'Trạng thái chuyển khoản'})
 
     dvvc_dict = {}
     try:
-        # Đọc thô toàn bộ tab, không mặc định dòng 1 là header
-        df_dvvc_raw = conn.read(spreadsheet=url, worksheet="Data_DVVC", header=None)
-        
-        # Quét tìm dòng chứa chữ "DVVC" để làm mốc Header chuẩn
-        for index, row in df_dvvc_raw.iterrows():
-            row_str = row.astype(str).str.strip()
-            if 'DVVC' in row_str.values and 'Link tra cứu' in row_str.values:
-                # Đẩy dòng đó lên làm header chính thức
-                df_dvvc_raw.columns = row_str
-                # Cắt lấy dữ liệu thật từ các dòng bên dưới trở đi
-                df_dvvc = df_dvvc_raw.iloc[index+1:].copy()
-                
-                # Xóa các dòng rỗng
-                df_dvvc = df_dvvc.dropna(subset=['DVVC'])
-                
-                # Tạo từ điển map link siêu chuẩn
-                keys = df_dvvc['DVVC'].astype(str).str.strip()
-                vals = df_dvvc['Link tra cứu'].astype(str).str.strip().replace(['nan', 'None', '<NA>'], '')
-                
-                # Xóa tiếp các DVVC bị rỗng tên
-                valid_mask = (keys != '') & (keys.str.lower() != 'nan')
-                
-                dvvc_dict = dict(zip(keys[valid_mask], vals[valid_mask]))
-                break
+        df_dvvc = conn.read(spreadsheet=url, worksheet="Data_DVVC")
+        df_dvvc.columns = df_dvvc.columns.str.strip()
+        df_dvvc = df_dvvc.dropna(subset=['DVVC'])
+        dvvc_dict = dict(zip(df_dvvc['DVVC'].astype(str).str.strip(), df_dvvc['Link tra cứu'].astype(str).str.strip()))
     except Exception as e:
         pass 
         
