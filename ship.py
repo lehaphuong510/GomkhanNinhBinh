@@ -325,13 +325,33 @@ try:
         html_content = """
         <html><head><meta charset="utf-8">
         <style>
-            @page { size: 100mm 150mm; margin: 0; }
-            body { font-family: Arial, sans-serif; margin: 0; padding: 2mm; background-color: #f4f4f9; }
-            .grid-container { display: flex; flex-direction: column; gap: 2mm; }
-            .label-box { width: 96mm; height: 47mm; background: #fff; border: 1px dashed #000; padding: 5px; border-radius: 4px; box-sizing: border-box; page-break-inside: avoid; }
+            /* Đổi sang khổ giấy A4, lề 10mm */
+            @page { size: A4 portrait; margin: 10mm; }
+            body { font-family: Arial, sans-serif; margin: 0; background-color: #fff; }
+            
+            /* Dàn trang 2 cột: cho phép rớt dòng, dàn từ trái sang phải */
+            .grid-container { 
+                display: flex; 
+                flex-wrap: wrap; 
+                gap: 5mm; 
+                justify-content: flex-start;
+            }
+            
+            /* Bề ngang A4 là 210mm. Trừ lề và khoảng trống (gap), set width 92mm là vừa khít 2 tem/hàng */
+            .label-box { 
+                width: 92mm; 
+                height: 55mm; 
+                background: #fff; 
+                border: 1px dashed #000; 
+                padding: 6px; 
+                border-radius: 4px; 
+                box-sizing: border-box; 
+                page-break-inside: avoid; 
+            }
+            
             .title { font-size: 14px; font-weight: bold; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; }
             .info { font-size: 13px; margin-bottom: 2px; line-height: 1.5; }
-            .products { font-size: 10px; }
+            .products { font-size: 11px; }
         </style></head><body><div class="grid-container">
         """
         
@@ -358,7 +378,7 @@ try:
                 <div class="title">📦 MÃ VĐ: {mvd}</div>
                 <div class="info">👤 <b>{ten}</b> <br>📞 {sdt}</div>
                 <div class="info">🏠 {diachi}</div>
-                <div class="products" style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px;">
+                <div class="products" style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 14px;">
                     <div style="flex: 1; padding-right: 5px;"><div style="margin-bottom: 4px;">{b1}</div><div style="margin-bottom: 4px;">{b2}</div></div>
                     <div style="flex: 1; padding-left: 5px;"><div style="margin-bottom: 4px;">{b3}</div><div style="margin-bottom: 4px;">{b4}</div></div>
                 </div>
