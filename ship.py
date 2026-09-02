@@ -325,22 +325,30 @@ try:
         html_content = """
         <html><head><meta charset="utf-8">
         <style>
-            /* Đổi sang khổ giấy A4, lề 10mm */
+            /* Định dạng khi in */
             @page { size: A4 portrait; margin: 10mm; }
-            body { font-family: Arial, sans-serif; margin: 0; background-color: #fff; }
+            body { font-family: Arial, sans-serif; background-color: #e0e0e0; margin: 0; padding: 20px; }
             
-            /* Dàn trang 2 cột: cho phép rớt dòng, dàn từ trái sang phải */
+            /* Khung giả lập tờ giấy A4 trên màn hình (để m nhìn không bị tràn 4 cột nữa) */
+            .page-a4 {
+                width: 210mm;
+                background-color: white;
+                padding: 10mm;
+                margin: 0 auto; /* Canh giữa màn hình */
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                box-sizing: border-box;
+            }
+
+            /* ÉP BUỘC ĐÚNG 2 CỘT BẰNG LỆNH GRID */
             .grid-container { 
-                display: flex; 
-                flex-wrap: wrap; 
+                display: grid; 
+                grid-template-columns: 1fr 1fr; /* Khóa chết 2 cột bằng nhau */
                 gap: 5mm; 
-                justify-content: flex-start;
             }
             
-            /* Bề ngang A4 là 210mm. Trừ lề và khoảng trống (gap), set width 92mm là vừa khít 2 tem/hàng */
             .label-box { 
-                width: 92mm; 
-                height: 55mm; 
+                width: 100%; /* Tự động chia đều lấp đầy 2 cột */
+                min-height: 55mm; /* Chiều cao tối thiểu của tem */
                 background: #fff; 
                 border: 1px dashed #000; 
                 padding: 6px; 
@@ -352,7 +360,15 @@ try:
             .title { font-size: 14px; font-weight: bold; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; }
             .info { font-size: 13px; margin-bottom: 2px; line-height: 1.5; }
             .products { font-size: 11px; }
-        </style></head><body><div class="grid-container">
+
+            /* Khi m bấm Ctrl + P để in, nó sẽ tự động ẩn cái viền xám giả lập đi */
+            @media print {
+                body { background-color: white; padding: 0; }
+                .page-a4 { width: 100%; box-shadow: none; padding: 0; margin: 0; }
+            }
+        </style></head><body>
+        <div class="page-a4">
+            <div class="grid-container">
         """
         
         for index, row in df_grouped.iterrows():
@@ -374,17 +390,23 @@ try:
             b4 = f"<span style='color: #D49A00;'>✔</span> <b style='color: #D49A00;'>{c_p4}x TN</b>" if c_p4 > 0 else "▢ <span style='font-weight:normal; color:#555;'>TN</span>"
 
             html_content += f"""
-            <div class="label-box">
-                <div class="title">📦 MÃ VĐ: {mvd}</div>
-                <div class="info">👤 <b>{ten}</b> <br>📞 {sdt}</div>
-                <div class="info">🏠 {diachi}</div>
-                <div class="products" style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 14px;">
-                    <div style="flex: 1; padding-right: 5px;"><div style="margin-bottom: 4px;">{b1}</div><div style="margin-bottom: 4px;">{b2}</div></div>
-                    <div style="flex: 1; padding-left: 5px;"><div style="margin-bottom: 4px;">{b3}</div><div style="margin-bottom: 4px;">{b4}</div></div>
+                <div class="label-box">
+                    <div class="title">📦 MÃ VĐ: {mvd}</div>
+                    <div class="info">👤 <b>{ten}</b> <br>📞 {sdt}</div>
+                    <div class="info">🏠 {diachi}</div>
+                    <div class="products" style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 14px;">
+                        <div style="flex: 1; padding-right: 5px;"><div style="margin-bottom: 4px;">{b1}</div><div style="margin-bottom: 4px;">{b2}</div></div>
+                        <div style="flex: 1; padding-left: 5px;"><div style="margin-bottom: 4px;">{b3}</div><div style="margin-bottom: 4px;">{b4}</div></div>
+                    </div>
                 </div>
-            </div>
             """
-        html_content += "</div></body></html>"
+        
+        # Đóng các div
+        html_content += """
+            </div>
+        </div>
+        </body></html>
+        """
         
         st.success(f"Đã tạo Label thành công cho {len(df_grouped)} đơn (sau khi gộp)!")
         st.download_button(label="📥 TẢI FILE IN LABLE (.html)", data=html_content, file_name="Label_Giao_Hang.html", mime="text/html")
