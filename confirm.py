@@ -207,11 +207,22 @@ with tab1:
         mvd = str(row_data.get('Mã vận đơn', '')).replace('nan', '').strip()
         dvvc = str(row_data.get('DVVC', '')).replace('nan', '').strip()
         phien = str(row_data.get('Phiên lấy hàng', '')).replace('nan', '').strip()
+        phi_ship = str(row_data.get('Phí dự kiến', '')).replace('nan', '').replace('.0', '').strip()
+        
+        # Format phí ship thành VNĐ (nếu là số)
+        if phi_ship != "":
+            try:
+                tien = int(re.sub(r'[^\d]', '', phi_ship))
+                phi_ship = f"{tien:,.0f} VNĐ"
+            except:
+                pass
         
         is_event = "LOVE" in noi_nhan_goc or "SỰ KIỆN" in noi_nhan_goc or "HÀ NỘI" in noi_nhan_goc
         
         if mvd == "":
             st.info("📦 Tụi mình sẽ sớm cập nhật Thông tin vận chuyển ngay sau khi book đơn nha ❤️")
+            if phi_ship != "":
+                st.markdown(f"<div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430;'><div style='margin-bottom: 0px;'><b>Phí ship dự kiến:</b> <span style='color: #E74C3C; font-weight: bold;'>{phi_ship}</span></div></div>", unsafe_allow_html=True)
         else:
             link_tra_cuu = dvvc_dict.get(dvvc, "")
             
@@ -220,6 +231,9 @@ with tab1:
             html_ship += f"<div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> <span style='color: #0B192C; font-weight: bold;'>{dvvc}</span></div>"
             html_ship += f"<div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> <span style='color: #0B192C; font-weight: bold;'>{phien}</span></div>"
             
+            if phi_ship != "":
+                html_ship += f"<div style='margin-bottom: 8px;'><b>Phí ship dự kiến:</b> <span style='color: #E74C3C; font-weight: bold;'>{phi_ship}</span></div>"
+                
             if link_tra_cuu != "" and not is_event:
                 html_ship += f"<div style='margin-bottom: 8px;'><b>Link để tracking:</b> <a href='{link_tra_cuu}' target='_blank' style='color: #0066CC; text-decoration: none; font-weight: bold;'>Bấm vào đây để tra cứu hành trình nha 🚀</a></div>"
                 
