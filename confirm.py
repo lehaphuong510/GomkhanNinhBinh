@@ -238,22 +238,30 @@ with tab1:
         else:
             link_tra_cuu = dvvc_dict.get(dvvc, "")
             
-            html_ship = f"<div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430;'>"
-            html_ship += f"<div style='margin-bottom: 8px;'><b>Mã vận đơn:</b> <span style='color: #E74C3C; font-weight: bold; font-size: 16px;'>{mvd}</span></div>"
-            html_ship += f"<div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> <span style='color: #0B192C; font-weight: bold;'>{dvvc}</span></div>"
-            html_ship += f"<div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> <span style='color: #0B192C; font-weight: bold;'>{phien}</span></div>"
+            # 1. Nửa trên của hộp HTML
+            html_ship_top = f"<div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430; padding-bottom: 5px; margin-bottom: 0px; border-bottom: none; border-radius: 8px 8px 0 0;'>"
+            html_ship_top += f"<div style='margin-bottom: 0px;'><b>Mã vận đơn:</b> <span style='font-size: 13px; color: #555; font-style: italic;'>(Bấm biểu tượng 📋 góc phải để Copy nha)</span></div></div>"
+            st.markdown(html_ship_top, unsafe_allow_html=True)
+            
+            # 2. Hộp chứa mã vận đơn có TÍCH HỢP NÚT COPY của Streamlit
+            st.code(mvd, language="plaintext")
+            
+            # 3. Nửa dưới của hộp HTML
+            html_ship_bot = f"<div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430; padding-top: 10px; margin-top: -15px; border-top: none; border-radius: 0 0 8px 8px;'>"
+            html_ship_bot += f"<div style='margin-bottom: 8px;'><b>Đơn vị vận chuyển:</b> <span style='color: #0B192C; font-weight: bold;'>{dvvc}</span></div>"
+            html_ship_bot += f"<div style='margin-bottom: 8px;'><b>Ngày shipper lấy hàng:</b> <span style='color: #0B192C; font-weight: bold;'>{phien}</span></div>"
             
             if phi_ship != "":
-                html_ship += f"<div style='margin-bottom: 8px;'><b>Phí ship dự kiến:</b> <span style='color: #E74C3C; font-weight: bold;'>{phi_ship}</span></div>"
+                html_ship_bot += f"<div style='margin-bottom: 8px;'><b>Phí ship dự kiến:</b> <span style='color: #E74C3C; font-weight: bold;'>{phi_ship}</span></div>"
                 
             if link_tra_cuu != "" and not is_event:
-                html_ship += f"<div style='margin-bottom: 8px;'><b>Link để tracking:</b> <a href='{link_tra_cuu}' target='_blank' style='color: #0066CC; text-decoration: none; font-weight: bold;'>Bấm vào đây để tra cứu hành trình nha 🚀</a></div>"
+                html_ship_bot += f"<div style='margin-bottom: 8px;'><b>Link để tracking:</b> <a href='{link_tra_cuu}' target='_blank' style='color: #0066CC; text-decoration: none; font-weight: bold;'>Bấm vào đây để tra cứu hành trình nha 🚀</a></div>"
                 
-            html_ship += "<hr style='border: 0.5px dashed #ccc; margin: 15px 0 10px 0;'>"
-            html_ship += "<div style='font-size: 14px; font-style: italic; color: #555;'>Nếu mọi người có gì cần hỗ trợ cứ liên hệ với tụi mình như thông tin trong group Zalo nha 😍</div>"
-            html_ship += "</div>"
+            html_ship_bot += "<hr style='border: 0.5px dashed #ccc; margin: 15px 0 10px 0;'>"
+            html_ship_bot += "<div style='font-size: 14px; font-style: italic; color: #555;'>Nếu mọi người có gì cần hỗ trợ cứ liên hệ với tụi mình như thông tin trong group Zalo nha 😍</div>"
+            html_ship_bot += "</div>"
             
-            st.markdown(html_ship, unsafe_allow_html=True)
+            st.markdown(html_ship_bot, unsafe_allow_html=True)
             
         # 1. THÔNG TIN SẢN PHẨM
         st.markdown("<div class='section-title'>🛒 THÔNG TIN SẢN PHẨM</div>", unsafe_allow_html=True)
