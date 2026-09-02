@@ -240,7 +240,7 @@ with tab1:
             
             # 1. Nửa trên của hộp HTML
             html_ship_top = f"<div class='info-box' style='background-color: #F0F8FF; border-left: 5px solid #F4C430; padding-bottom: 5px; margin-bottom: 0px; border-bottom: none; border-radius: 8px 8px 0 0;'>"
-            html_ship_top += f"<div style='margin-bottom: 0px;'><b>Mã vận đơn:</b> <span style='font-size: 13px; color: #555; font-style: italic;'>(Bấm biểu tượng 📋 góc phải để Copy nha)</span></div></div>"
+            html_ship_top += f"<div style='margin-bottom: 0px;'><b>Mã vận đơn:</b> <span style='font-size: 13px; color: #555; font-style: italic;'>(Bấm biểu tượng copy góc phải để Copy nha)</span></div></div>"
             st.markdown(html_ship_top, unsafe_allow_html=True)
             
             # 2. Hộp chứa mã vận đơn có TÍCH HỢP NÚT COPY của Streamlit
